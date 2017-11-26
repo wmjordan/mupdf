@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="DebugCommercial|Win32">
+      <Configuration>DebugCommercial</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugCommercial|x64">
+      <Configuration>DebugCommercial</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MementoCommercial|Win32">
+      <Configuration>MementoCommercial</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MementoCommercial|x64">
+      <Configuration>MementoCommercial</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseCommercial|Win32">
+      <Configuration>ReleaseCommercial</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseCommercial|x64">
+      <Configuration>ReleaseCommercial</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B0091365-C9BA-4F40-AE2B-EF93702871B2}</ProjectGuid>
+    <RootNamespace>libluratech</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>15.0.26730.12</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|Win32'">
+    <OutDir>$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules />
+    <CodeAnalysisRuleAssemblies />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|x64'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules />
+    <CodeAnalysisRuleAssemblies />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|Win32'">
+    <OutDir>$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules />
+    <CodeAnalysisRuleAssemblies />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|x64'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules />
+    <CodeAnalysisRuleAssemblies />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|Win32'">
+    <OutDir>$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules />
+    <CodeAnalysisRuleAssemblies />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|x64'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules />
+    <CodeAnalysisRuleAssemblies />
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\thirdparty\luratech\ldf_jb2\source\common;..\..\thirdparty\luratech\ldf_jb2\source\libraries;..\..\thirdparty\luratech\ldf_jb2\source\compress;..\..\thirdparty\luratech\lwf_jp2\library\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCommercial|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\thirdparty\luratech\ldf_jb2\source\common;..\..\thirdparty\luratech\ldf_jb2\source\libraries;..\..\thirdparty\luratech\ldf_jb2\source\compress;..\..\thirdparty\luratech\lwf_jp2\library\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN64;NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\thirdparty\luratech\ldf_jb2\source\common;..\..\thirdparty\luratech\ldf_jb2\source\libraries;..\..\thirdparty\luratech\ldf_jb2\source\compress;..\..\thirdparty\luratech\lwf_jp2\library\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugCommercial|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\thirdparty\luratech\ldf_jb2\source\common;..\..\thirdparty\luratech\ldf_jb2\source\libraries;..\..\thirdparty\luratech\ldf_jb2\source\compress;..\..\thirdparty\luratech\lwf_jp2\library\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN64;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\thirdparty\luratech\ldf_jb2\source\common;..\..\thirdparty\luratech\ldf_jb2\source\libraries;..\..\thirdparty\luratech\ldf_jb2\source\compress;..\..\thirdparty\luratech\lwf_jp2\library\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;MEMENTO=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MementoCommercial|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\thirdparty\luratech\ldf_jb2\source\common;..\..\thirdparty\luratech\ldf_jb2\source\libraries;..\..\thirdparty\luratech\ldf_jb2\source\compress;..\..\thirdparty\luratech\lwf_jp2\library\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN64;_DEBUG;MEMENTO=1;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_cache.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_buffer.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_ref_buffer.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_ref_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_collective_bitmap.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_generic_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_halftone_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_pattern_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_symbol_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_text_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_external_cache.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_file.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_file_extras.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_handle_document.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_standard.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_symbol.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_user_defined.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_tree.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_location.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_memory.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_message.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mmr_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mmr_tables.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mq_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mq_state.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_pattern_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_pdf_file.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_pdf_stream.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_props_decompress.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_read_bit_buffer.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_read_data.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_common.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_generic_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_halftone_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_text_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_end_of_file.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_end_of_page.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_end_of_stripe.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_generic_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_halftone_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_page_info.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_pattern_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_symbol_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_table.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_text_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_types.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol_instance.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_write_bits.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_write_data.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_write_pdf.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_common.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_license_dummy.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_class.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_group.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_match.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_context_encoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_context_ref_encoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_encoder_generic_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_encoder_symbol_dict.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_encoder_text_region.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_handle_compress.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_huffman_encoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_mmr_encoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_mq_encoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_props_compress.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_run_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stack.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_clean_up.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_encoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_half_tone.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_preprocessing.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_text.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_symbol_unify.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_coder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_codestream.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_code_cb.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_file_format.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_format.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_memory.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_progression.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_quant.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_wavelet.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_wavelet_lifting.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_wavelet_lifting_mmx.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_weights.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_write.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_codestream.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_file_format.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_format.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_image.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_memory.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_partial_decoding.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_progression.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_quant.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_scale.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_wavelet.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_wavelet_lifting.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_wavelet_lifting_mmx.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_write.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_codestream.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_file_format.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_image.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_memory.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_progression.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_transcoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_band_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_band_buffer.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_block_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_cache.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_comp.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_component_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_decomp.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_ebcot_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_external_cache.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_image.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_memory.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_mq_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_mq_state.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_packet_decoder.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_precinct_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_rate.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_rate_list.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_reader_requirements.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_read_bits.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_read_data.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_resolution_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_tile_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_tlm_marker_array.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_write_data.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_buffer.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_code_cb.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_common.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_icc.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_license.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_packet.c" />
+    <ClCompile Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_tag_tree.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_cache.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_buffer.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_ref_buffer.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_context_ref_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_collective_bitmap.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_generic_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_halftone_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_pattern_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_symbol_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_decoder_text_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_external_cache.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_file.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_file_extras.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_entry.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_standard.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_symbol.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_table_user_defined.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_huffman_tree.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_location.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_memory.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_message.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mmr_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mmr_tables.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mq_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mq_ids.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_mq_state.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_pattern_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_pdf_file.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_pdf_stream.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_props_decompress.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_read_bit_buffer.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_read_data.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_common.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_generic_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_halftone_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_render_text_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_end_of_file.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_end_of_page.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_end_of_stripe.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_generic_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_halftone_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_page_info.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_pattern_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_symbol_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_table.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_text_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_segment_types.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol_instance.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_symbol_instance_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_write_bits.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_write_data.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_adt_write_pdf.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_common.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_defines.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\common\jb2_license.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_class.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_group.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_component_match.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_context_encoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_context_ref_encoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_encoder_generic_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_encoder_symbol_dict.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_encoder_text_region.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_huffman_encoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_mmr_encoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_mq_encoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_props_compress.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_run.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_run_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stack.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_clean_up.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_encoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_half_tone.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_preprocessing.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_stripe_text.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\ldf_jb2\source\compress\jb2_adt_symbol_unify.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_coder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_codestream.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_file_format.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_format.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_memory.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_progression.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_quant.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_wavelet.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_wavelet_lifting.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_wavelet_lifting_mmx.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_weights.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2c_write.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_codestream.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_file_format.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_format.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_image.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_memory.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_partial_decoding.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_progression.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_quant.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_scale.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_wavelet.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_wavelet_lifting.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_wavelet_lifting_mmx.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2d_write.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_codestream.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_file_format.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_image.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_memory.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_progression.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2t_transcoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_band_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_band_buffer.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_block_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_cache.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_comp.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_component_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_decomp.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_ebcot_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_external_cache.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_image.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_memory.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_mq_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_mq_state.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_packet_decoder.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_precinct_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_rate.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_rate_list.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_reader_requirements.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_read_bits.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_read_data.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_resolution_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_tile_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_tlm_marker_array.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_adt_write_data.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_assembly.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_buffer.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_codestream.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_code_cb.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_common.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_file_format.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_icc.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_image.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_license.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_mac_carbon.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_packet.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\jp2_tag_tree.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\lwf_jp2.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\tiff.h" />
+    <ClInclude Include="..\..\thirdparty\luratech\lwf_jp2\library\source\tiffio.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
