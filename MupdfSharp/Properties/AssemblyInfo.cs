@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration ("")]
 [assembly: AssemblyCompany ("")]
 [assembly: AssemblyProduct ("MupdfSharp")]
-[assembly: AssemblyCopyright ("Copyright ©  2012")]
+[assembly: AssemblyCopyright ("Copyright ©wmjordan 2017")]
 [assembly: AssemblyTrademark ("")]
 [assembly: AssemblyCulture ("")]
 
@@ -33,4 +33,4 @@ using System.Runtime.InteropServices;
 // 方法是按如下所示使用“*”:
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion ("1.0.0.0")]
-[assembly: AssemblyFileVersion ("1.0.0.23")]
+[assembly: AssemblyFileVersion ("1.0.0.26")]
