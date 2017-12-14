@@ -42,7 +42,12 @@ namespace MupdfSharp
 			ctm.A = ctm.D = 1; // sets the matrix as the identity matrix (1,0,0,1,0,0)
 
 			// creates a pixmap the same size as the width and height of the page
+#if UNSAFE
 			pix = NativeMethods.NewPixmap (context, NativeMethods.FindDeviceColorSpace (context, ColorSpace.Rgb), width, height, IntPtr.Zero, 0);
+#else
+			// use BGR color space to save byte conversions
+			pix = NativeMethods.NewPixmap (context, NativeMethods.FindDeviceColorSpace (context, ColorSpace.Bgr), width, height, IntPtr.Zero, 0);
+#endif
 			// sets white color as the background color of the pixmap
 			NativeMethods.ClearPixmap (context, pix, 0xFF);
 
@@ -59,6 +64,10 @@ namespace MupdfSharp
 			// creates a colorful bitmap of the same size of the pixmap
 			Bitmap bmp = new Bitmap (width, height, PixelFormat.Format24bppRgb); 
 			var imageData = bmp.LockBits (new System.Drawing.Rectangle (0, 0, width, height), ImageLockMode.ReadWrite, bmp.PixelFormat);
+
+#if UNSAFE
+			// note: unsafe conversion from pixmap to bitmap
+			// without the overhead of P/Invokes, the following code can run faster than the safe-conversion code below
 			unsafe { // converts the pixmap data to Bitmap data
 				byte* ptrSrc = (byte*)NativeMethods.GetSamples (context, pix); // gets the rendered data from the pixmap
 				byte* ptrDest = (byte*)imageData.Scan0;
@@ -78,6 +87,18 @@ namespace MupdfSharp
 					ptrSrc += width * 3;
 				}
 			}
+#else
+			// note: Safe-conversion from pixmap to bitmap
+			var source = NativeMethods.GetSamples(context, pix);
+			var target = imageData.Scan0;
+			for (int y = 0; y < height; y++) {
+				// copy memory line by line
+				NativeMethods.RtlMoveMemory(target, source, width * 3);
+				target = (IntPtr)(target.ToInt64() + imageData.Stride);
+				source = (IntPtr)(source.ToInt64() + width * 3);
+			}
+#endif
+			bmp.UnlockBits(imageData);
 			NativeMethods.DropPixmap (context, pix);
 			return bmp;
 		}
@@ -175,6 +196,8 @@ namespace MupdfSharp
 			[DllImport (DLL, EntryPoint = "fz_pixmap_samples")]
 			public static extern IntPtr GetSamples (IntPtr ctx, IntPtr pix);
 
+			[DllImport("kernel32.dll")]
+			public static extern void RtlMoveMemory(IntPtr dest, IntPtr src, int byteCount);
 		}
 	}
 }
