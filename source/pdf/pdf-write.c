@@ -644,6 +644,7 @@ expand_lists(fz_context *ctx, pdf_write_state *opts, int num)
 	{
 		opts->use_list[i] = 0;
 		opts->ofs_list[i] = 0;
+		opts->gen_list[i] = 0;
 		opts->renumber_map[i] = i;
 		opts->rev_renumber_map[i] = i;
 	}
@@ -1946,9 +1947,9 @@ static void writexrefsubsect(fz_context *ctx, pdf_write_state *opts, int from, i
 	for (num = from; num < to; num++)
 	{
 		if (opts->use_list[num])
-			fz_write_printf(ctx, opts->out, "%010ld %05d n \n", opts->ofs_list[num], opts->gen_list[num]);
+			fz_write_printf(ctx, opts->out, "%010lu %05d n \n", opts->ofs_list[num], opts->gen_list[num]);
 		else
-			fz_write_printf(ctx, opts->out, "%010ld %05d f \n", opts->ofs_list[num], opts->gen_list[num]);
+			fz_write_printf(ctx, opts->out, "%010lu %05d f \n", opts->ofs_list[num], opts->gen_list[num]);
 	}
 }
 
@@ -2031,7 +2032,7 @@ static void writexref(fz_context *ctx, pdf_document *doc, pdf_write_state *opts,
 
 	pdf_drop_obj(ctx, trailer);
 
-	fz_write_printf(ctx, opts->out, "startxref\n%ld\n%%%%EOF\n", startxref);
+	fz_write_printf(ctx, opts->out, "startxref\n%lu\n%%%%EOF\n", startxref);
 
 	doc->has_xref_streams = 0;
 }
@@ -2155,7 +2156,7 @@ static void writexrefstream(fz_context *ctx, pdf_document *doc, pdf_write_state 
 		pdf_update_stream(ctx, doc, dict, fzbuf, 0);
 
 		writeobject(ctx, doc, opts, num, 0, 0);
-		fz_write_printf(ctx, opts->out, "startxref\n%ld\n%%%%EOF\n", startxref);
+		fz_write_printf(ctx, opts->out, "startxref\n%lu\n%%%%EOF\n", startxref);
 	}
 	fz_always(ctx)
 	{
@@ -2703,7 +2704,7 @@ static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_st
 	}
 }
 
-static void sanitize(fz_context *ctx, pdf_document *doc, int ascii)
+static void clean_content_streams(fz_context *ctx, pdf_document *doc, int sanitize, int ascii)
 {
 	int n = pdf_count_pages(ctx, doc);
 	int i;
@@ -2712,11 +2713,11 @@ static void sanitize(fz_context *ctx, pdf_document *doc, int ascii)
 	{
 		pdf_annot *annot;
 		pdf_page *page = pdf_load_page(ctx, doc, i);
-		pdf_clean_page_contents(ctx, doc, page, NULL, NULL, NULL, ascii);
+		pdf_clean_page_contents(ctx, doc, page, NULL, NULL, NULL, sanitize, ascii);
 
 		for (annot = pdf_first_annot(ctx, page); annot != NULL; annot = pdf_next_annot(ctx, annot))
 		{
-			pdf_clean_annot_contents(ctx, doc, annot, NULL, NULL, NULL, ascii);
+			pdf_clean_annot_contents(ctx, doc, annot, NULL, NULL, NULL, sanitize, ascii);
 		}
 
 		fz_drop_page(ctx, &page->super);
@@ -2787,7 +2788,8 @@ const char *fz_pdf_write_options_usage =
 	"\tascii: ASCII hex encode binary streams\n"
 	"\tpretty: pretty-print objects with indentation\n"
 	"\tlinearize: optimize for web browsers\n"
-	"\tsanitize: clean up graphics commands in content streams\n"
+	"\tclean: pretty-print graphics commands in content streams\n"
+	"\tsanitize: sanitize graphics commands in content streams\n"
 	"\tgarbage: garbage collect unused objects\n"
 	"\tincremental: write changes as incremental update\n"
 	"\tcontinue-on-error: continue saving the document even if there is an error\n"
@@ -2816,8 +2818,10 @@ pdf_parse_write_options(fz_context *ctx, pdf_write_options *opts, const char *ar
 		opts->do_pretty = fz_option_eq(val, "yes");
 	if (fz_has_option(ctx, args, "linearize", &val))
 		opts->do_linear = fz_option_eq(val, "yes");
-	if (fz_has_option(ctx, args, "sanitize", &val))
+	if (fz_has_option(ctx, args, "clean", &val))
 		opts->do_clean = fz_option_eq(val, "yes");
+	if (fz_has_option(ctx, args, "sanitize", &val))
+		opts->do_sanitize = fz_option_eq(val, "yes");
 	if (fz_has_option(ctx, args, "incremental", &val))
 		opts->do_incremental = fz_option_eq(val, "yes");
 	if (fz_has_option(ctx, args, "continue-on-error", &val))
@@ -2851,9 +2855,9 @@ prepare_for_save(fz_context *ctx, pdf_document *doc, pdf_write_options *in_opts)
 {
 	doc->freeze_updates = 1;
 
-	/* Sanitize the operator streams */
-	if (in_opts->do_clean)
-		sanitize(ctx, doc, in_opts->do_ascii);
+	/* Rewrite (and possibly sanitize) the operator streams */
+	if (in_opts->do_clean || in_opts->do_sanitize)
+		clean_content_streams(ctx, doc, in_opts->do_sanitize, in_opts->do_ascii);
 
 	pdf_finish_edit(ctx, doc);
 	presize_unsaved_signature_byteranges(ctx, doc);

@@ -72,7 +72,7 @@ QUIET_WINDRES = @ echo ' ' ' ' WINDRES $@ ;
 endif
 
 CC_CMD = $(QUIET_CC) $(CC) $(CFLAGS) -o $@ -c $<
-CXX_CMD = $(QUIET_CXX) $(CXX) $(CFLAGS) -o $@ -c $<
+CXX_CMD = $(QUIET_CXX) $(CXX) $(filter-out -Wdeclaration-after-statement,$(CFLAGS)) -o $@ -c $<
 AR_CMD = $(QUIET_AR) $(AR) cr $@ $^
 LINK_CMD = $(QUIET_LINK) $(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 MKDIR_CMD = $(QUIET_MKDIR) mkdir -p $@
@@ -413,10 +413,10 @@ MUVIEW_EXE := $(MUVIEW_X11_EXE) $(MUVIEW_WIN32_EXE) $(MUVIEW_GLUT_EXE)
 MUVIEW_CURL_EXE := $(MUVIEW_X11_CURL_EXE) $(MUVIEW_WIN32_CURL_EXE)
 
 INSTALL_APPS := $(MUTOOL_EXE) $(MUVIEW_EXE)
-INSTALL_APPS += $(MURASTER_EXE)
-INSTALL_APPS += $(MUVIEW_CURL_EXE)
-INSTALL_APPS += $(MUJSTEST_EXE)
-INSTALL_APPS += $(MJSGEN_EXE)
+EXTRA_APPS += $(MURASTER_EXE)
+EXTRA_APPS += $(MUVIEW_CURL_EXE)
+EXTRA_APPS += $(MUJSTEST_EXE)
+EXTRA_APPS += $(MJSGEN_EXE)
 
 # --- Examples ---
 
@@ -454,9 +454,11 @@ mandir ?= $(prefix)/share/man
 docdir ?= $(prefix)/share/doc/mupdf
 
 third: $(THIRD_LIB)
-extra: $(CURL_LIB) $(GLUT_LIB)
+extra-libs: $(CURL_LIB) $(GLUT_LIB)
 libs: $(INSTALL_LIBS)
 apps: $(INSTALL_APPS)
+extra-apps: $(EXTRA_APPS)
+extra: extra-libs extra-apps
 
 install: libs apps
 	install -d $(DESTDIR)$(incdir)/mupdf
