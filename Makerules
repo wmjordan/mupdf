@@ -21,6 +21,9 @@ else
 LDREMOVEUNREACH := -Wl,--gc-sections
 endif
 
+SANITIZE_FLAGS := -fsanitize=address
+SANITIZE_FLAGS += -fsanitize=leak
+
 ifeq "$(build)" "debug"
 CFLAGS += -pipe -g
 LDFLAGS += -g
@@ -34,11 +37,11 @@ else ifeq "$(build)" "valgrind"
 CFLAGS += -pipe -O2 -DNDEBUG -DPACIFY_VALGRIND -fno-omit-frame-pointer
 LDFLAGS += $(LDREMOVEUNREACH) -Wl,-s
 else ifeq "$(build)" "sanitize"
-CFLAGS += -pipe -g -fno-omit-frame-pointer -fsanitize=address
-LDFLAGS += -g -fsanitize=address
+CFLAGS += -pipe -g -fno-omit-frame-pointer $(SANITIZE_FLAGS)
+LDFLAGS += -g $(SANITIZE_FLAGS)
 else ifeq "$(build)" "sanitize-release"
-CFLAGS += -pipe -O2 -DNDEBUG -fno-omit-frame-pointer -fsanitize=address
-LDFLAGS += $(LDREMOVEUNREACH) -Wl,-s -fsanitize=address
+CFLAGS += -pipe -O2 -DNDEBUG -fno-omit-frame-pointer $(SANITIZE_FLAGS)
+LDFLAGS += $(LDREMOVEUNREACH) -Wl,-s $(SANITIZE_FLAGS)
 else ifeq "$(build)" "profile"
 CFLAGS += -pipe -O2 -DNDEBUG -pg
 LDFLAGS += -pg
@@ -97,7 +100,7 @@ HAVE_GLUT := yes
 SYS_GLUT_CFLAGS :=
 SYS_GLUT_LIBS := -lglut -lGL
 
-ifeq "$(shell pkg-config --exists 'libcrypto <= 1.0.1t' && echo yes)" "yes"
+ifeq "$(shell pkg-config --exists 'libcrypto >= 1.1.0' && echo yes)" "yes"
 HAVE_LIBCRYPTO := yes
 SYS_LIBCRYPTO_CFLAGS := -DHAVE_LIBCRYPTO $(shell pkg-config --cflags libcrypto)
 SYS_LIBCRYPTO_LIBS := $(shell pkg-config --libs libcrypto)

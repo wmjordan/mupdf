@@ -10,8 +10,8 @@ struct entry
 {
 	int num;
 	int gen;
-	int ofs;
-	int stm_ofs;
+	int64_t ofs;
+	int64_t stm_ofs;
 	int stm_len;
 };
 
@@ -515,11 +515,12 @@ pdf_repair_xref(fz_context *ctx, pdf_document *doc)
 			}
 
 			else if (tok == PDF_TOK_EOF)
+			{
 				break;
+			}
+
 			else
 			{
-				if (tok == PDF_TOK_ERROR)
-					fz_read_byte(ctx, doc->file);
 				num = 0;
 				gen = 0;
 			}

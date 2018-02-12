@@ -59,7 +59,7 @@ static void pdf_drop_xref_sections_imp(fz_context *ctx, pdf_document *doc, pdf_x
 		{
 			xref->unsaved_sigs = usig->next;
 			pdf_drop_obj(ctx, usig->field);
-			pdf_drop_signer(ctx, usig->signer);
+			usig->signer->drop(usig->signer);
 			fz_free(ctx, usig);
 		}
 	}
@@ -228,8 +228,8 @@ pdf_xref_entry *pdf_get_populating_xref_entry(fz_context *ctx, pdf_document *doc
 	}
 
 	/* Prevent accidental heap underflow */
-	if (num < 0)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "object number must not be negative (%d)", num);
+	if (num < 0 || num > PDF_MAX_OBJECT_NUMBER)
+		fz_throw(ctx, FZ_ERROR_GENERIC, "object number out of range (%d)", num);
 
 	/* Return the pointer to the entry in the last section. */
 	xref = &doc->xref_sections[doc->num_xref_sections-1];
@@ -408,7 +408,7 @@ int pdf_xref_is_incremental(fz_context *ctx, pdf_document *doc, int num)
 	return num < xref->num_objects && sub->table[num].type;
 }
 
-void pdf_xref_store_unsaved_signature(fz_context *ctx, pdf_document *doc, pdf_obj *field, pdf_signer *signer)
+void pdf_xref_store_unsaved_signature(fz_context *ctx, pdf_document *doc, pdf_obj *field, pdf_pkcs7_signer *signer)
 {
 	pdf_xref *xref = &doc->xref_sections[0];
 	pdf_unsaved_sig *unsaved_sig;
@@ -418,7 +418,7 @@ void pdf_xref_store_unsaved_signature(fz_context *ctx, pdf_document *doc, pdf_ob
 	 * saving time */
 	unsaved_sig = fz_malloc_struct(ctx, pdf_unsaved_sig);
 	unsaved_sig->field = pdf_keep_obj(ctx, field);
-	unsaved_sig->signer = pdf_keep_signer(ctx, signer);
+	unsaved_sig->signer = signer->keep(signer);
 	unsaved_sig->next = NULL;
 	if (xref->unsaved_sigs_end == NULL)
 		xref->unsaved_sigs_end = &xref->unsaved_sigs;
@@ -590,7 +590,7 @@ pdf_load_version(fz_context *ctx, pdf_document *doc)
 
 	fz_seek(ctx, doc->file, 0, SEEK_SET);
 	fz_read_line(ctx, doc->file, buf, sizeof buf);
-	if (memcmp(buf, "%PDF-", 5) != 0)
+	if (strlen(buf) < 5 || memcmp(buf, "%PDF-", 5) != 0)
 		fz_throw(ctx, FZ_ERROR_GENERIC, "cannot recognize version marker");
 
 	doc->version = 10 * (fz_atof(buf+5) + 0.05f);
@@ -1566,6 +1566,8 @@ pdf_load_obj_stm(fz_context *ctx, pdf_document *doc, int num, pdf_lexbuf *buf, i
 	int i;
 	pdf_token tok;
 	pdf_xref_entry *ret_entry = NULL;
+	int xref_len;
+	int found;
 
 	fz_var(numbuf);
 	fz_var(ofsbuf);
@@ -1576,16 +1578,35 @@ pdf_load_obj_stm(fz_context *ctx, pdf_document *doc, int num, pdf_lexbuf *buf, i
 	{
 		objstm = pdf_load_object(ctx, doc, num);
 
+		if (pdf_obj_marked(ctx, objstm))
+			fz_throw(ctx, FZ_ERROR_GENERIC, "recursive object stream lookup");
+	}
+	fz_catch(ctx)
+	{
+		pdf_drop_obj(ctx, objstm);
+		fz_rethrow(ctx);
+	}
+
+	fz_try(ctx)
+	{
+		pdf_mark_obj(ctx, objstm);
+
 		count = pdf_to_int(ctx, pdf_dict_get(ctx, objstm, PDF_NAME_N));
 		first = pdf_to_int(ctx, pdf_dict_get(ctx, objstm, PDF_NAME_First));
 
-		if (count < 0)
-			fz_throw(ctx, FZ_ERROR_GENERIC, "negative number of objects in object stream");
-		if (first < 0)
-			fz_throw(ctx, FZ_ERROR_GENERIC, "first object in object stream resides outside stream");
+		if (count < 0 || count > PDF_MAX_OBJECT_NUMBER)
+			fz_throw(ctx, FZ_ERROR_GENERIC, "number of objects in object stream out of range");
+		if (first < 0 || first > PDF_MAX_OBJECT_NUMBER
+				|| count < 0 || count > PDF_MAX_OBJECT_NUMBER
+				|| first + count - 1 > PDF_MAX_OBJECT_NUMBER)
+			fz_throw(ctx, FZ_ERROR_GENERIC, "object stream object numbers are out of range");
 
 		numbuf = fz_calloc(ctx, count, sizeof(*numbuf));
 		ofsbuf = fz_calloc(ctx, count, sizeof(*ofsbuf));
+
+		xref_len = pdf_xref_len(ctx, doc);
+
+		found = 0;
 
 		stm = pdf_open_stream_number(ctx, doc, num);
 		for (i = 0; i < count; i++)
@@ -1593,29 +1614,26 @@ pdf_load_obj_stm(fz_context *ctx, pdf_document *doc, int num, pdf_lexbuf *buf, i
 			tok = pdf_lex(ctx, stm, buf);
 			if (tok != PDF_TOK_INT)
 				fz_throw(ctx, FZ_ERROR_GENERIC, "corrupt object stream (%d 0 R)", num);
-			numbuf[i] = buf->i;
+			numbuf[found] = buf->i;
 
 			tok = pdf_lex(ctx, stm, buf);
 			if (tok != PDF_TOK_INT)
 				fz_throw(ctx, FZ_ERROR_GENERIC, "corrupt object stream (%d 0 R)", num);
-			ofsbuf[i] = buf->i;
+			ofsbuf[found] = buf->i;
+
+			if (numbuf[found] <= 0 || numbuf[found] >= xref_len)
+				fz_warn(ctx, "object stream object out of range, skipping");
+			else
+				found++;
 		}
 
-		fz_seek(ctx, stm, first, SEEK_SET);
-
-		for (i = 0; i < count; i++)
+		for (i = 0; i < found; i++)
 		{
-			int xref_len = pdf_xref_len(ctx, doc);
 			pdf_xref_entry *entry;
+
 			fz_seek(ctx, stm, first + ofsbuf[i], SEEK_SET);
 
 			obj = pdf_parse_stm_obj(ctx, doc, stm, buf);
-
-			if (numbuf[i] <= 0 || numbuf[i] >= xref_len)
-			{
-				pdf_drop_obj(ctx, obj);
-				fz_throw(ctx, FZ_ERROR_GENERIC, "object id (%d 0 R) out of range (0..%d)", numbuf[i], xref_len - 1);
-			}
 
 			entry = pdf_get_xref_entry(ctx, doc, numbuf[i]);
 
@@ -1655,6 +1673,7 @@ pdf_load_obj_stm(fz_context *ctx, pdf_document *doc, int num, pdf_lexbuf *buf, i
 		fz_drop_stream(ctx, stm);
 		fz_free(ctx, ofsbuf);
 		fz_free(ctx, numbuf);
+		pdf_unmark_obj(ctx, objstm);
 		pdf_drop_obj(ctx, objstm);
 	}
 	fz_catch(ctx)
@@ -2699,14 +2718,14 @@ pdf_document *pdf_create_document(fz_context *ctx)
 		pdf_get_populating_xref_entry(ctx, doc, 0);
 
 		trailer = pdf_new_dict(ctx, doc, 2);
-		pdf_dict_put_drop(ctx, trailer, PDF_NAME_Size, pdf_new_int(ctx, doc, 3));
+		pdf_dict_put_int(ctx, trailer, PDF_NAME_Size, 3);
 		root = pdf_new_dict(ctx, doc, 2);
 		pdf_dict_put_drop(ctx, trailer, PDF_NAME_Root, pdf_add_object_drop(ctx, doc, root));
-		pdf_dict_put_drop(ctx, root, PDF_NAME_Type, PDF_NAME_Catalog);
+		pdf_dict_put(ctx, root, PDF_NAME_Type, PDF_NAME_Catalog);
 		pages = pdf_new_dict(ctx, doc, 3);
 		pdf_dict_put_drop(ctx, root, PDF_NAME_Pages, pdf_add_object_drop(ctx, doc, pages));
-		pdf_dict_put_drop(ctx, pages, PDF_NAME_Type, PDF_NAME_Pages);
-		pdf_dict_put_drop(ctx, pages, PDF_NAME_Count, pdf_new_int(ctx, doc, 0));
+		pdf_dict_put(ctx, pages, PDF_NAME_Type, PDF_NAME_Pages);
+		pdf_dict_put_int(ctx, pages, PDF_NAME_Count, 0);
 		pdf_dict_put_drop(ctx, pages, PDF_NAME_Kids, pdf_new_array(ctx, doc, 1));
 
 		/* Set the trailer of the final xref section. */

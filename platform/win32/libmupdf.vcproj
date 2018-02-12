@@ -1861,6 +1861,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\source\fitz\random.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\source\fitz\separation.c"
 				>
 			</File>
@@ -2133,10 +2137,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\source\pdf\pdf-pkcs7.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\source\pdf\pdf-portfolio.c"
 				>
 			</File>
@@ -2154,6 +2154,10 @@
 			</File>
 			<File
 				RelativePath="..\..\source\pdf\pdf-shade.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\source\pdf\pdf-signature.c"
 				>
 			</File>
 			<File

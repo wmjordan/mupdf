@@ -20,11 +20,12 @@ pdf_obj_num_is_stream(fz_context *ctx, pdf_document *doc, int num)
 }
 
 int
-pdf_is_stream(fz_context *ctx, pdf_obj *obj)
+pdf_is_stream(fz_context *ctx, pdf_obj *ref)
 {
-	pdf_document *doc = pdf_get_bound_document(ctx, obj);
-	int num = pdf_obj_parent_num(ctx, obj);
-	return pdf_obj_num_is_stream(ctx, doc, num);
+	pdf_document *doc = pdf_get_indirect_document(ctx, ref);
+	if (doc)
+		return pdf_obj_num_is_stream(ctx, doc, pdf_to_num(ctx, ref));
+	return 0;
 }
 
 /*
@@ -303,14 +304,15 @@ pdf_open_raw_filter(fz_context *ctx, fz_stream *chain, pdf_document *doc, pdf_ob
 		*orig_gen = 0;
 	}
 
+	chain = fz_keep_stream(ctx, chain);
+
 	fz_var(chain);
 
 	fz_try(ctx)
 	{
 		len = pdf_to_int(ctx, pdf_dict_get(ctx, stmobj, PDF_NAME_Length));
 
-		/* don't close chain when we close this filter */
-		chain2 = fz_keep_stream(ctx, chain);
+		chain2 = chain;
 		chain = NULL;
 		chain = fz_open_null(ctx, chain2, len, offset);
 

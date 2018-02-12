@@ -703,7 +703,7 @@ pdf_widget *pdf_create_widget(fz_context *ctx, pdf_document *doc, pdf_page *page
 	fz_try(ctx)
 	{
 		pdf_set_field_type(ctx, doc, annot->obj, type);
-		pdf_dict_put_drop(ctx, annot->obj, PDF_NAME_T, pdf_new_string(ctx, doc, fieldname, strlen(fieldname)));
+		pdf_dict_put_string(ctx, annot->obj, PDF_NAME_T, fieldname, strlen(fieldname));
 
 		if (type == PDF_WIDGET_TYPE_SIGNATURE)
 		{
@@ -1277,7 +1277,7 @@ void pdf_choice_widget_set_value(fz_context *ctx, pdf_document *doc, pdf_widget 
 	}
 }
 
-int pdf_signature_widget_byte_range(fz_context *ctx, pdf_document *doc, pdf_widget *widget, int (*byte_range)[2])
+int pdf_signature_widget_byte_range(fz_context *ctx, pdf_document *doc, pdf_widget *widget, fz_range *byte_range)
 {
 	pdf_annot *annot = (pdf_annot *)widget;
 	pdf_obj *br = pdf_dict_getl(ctx, annot->obj, PDF_NAME_V, PDF_NAME_ByteRange, NULL);
@@ -1287,12 +1287,42 @@ int pdf_signature_widget_byte_range(fz_context *ctx, pdf_document *doc, pdf_widg
 	{
 		for (i = 0; i < n; i++)
 		{
-			byte_range[i][0] = pdf_to_int(ctx, pdf_array_get(ctx, br, 2*i));
-			byte_range[i][1] = pdf_to_int(ctx, pdf_array_get(ctx, br, 2*i+1));
+			byte_range[i].offset = pdf_to_int(ctx, pdf_array_get(ctx, br, 2*i));
+			byte_range[i].len = pdf_to_int(ctx, pdf_array_get(ctx, br, 2*i+1));
 		}
 	}
 
 	return n;
+}
+
+fz_stream *pdf_signature_widget_hash_bytes(fz_context *ctx, pdf_document *doc, pdf_widget *widget)
+{
+	fz_range *byte_range = NULL;
+	int byte_range_len;
+	fz_stream *bytes = NULL;
+
+	fz_var(byte_range);
+	fz_try(ctx)
+	{
+		byte_range_len = pdf_signature_widget_byte_range(ctx, doc, widget, NULL);
+		if (byte_range_len)
+		{
+			byte_range = fz_calloc(ctx, byte_range_len, sizeof(*byte_range));
+			pdf_signature_widget_byte_range(ctx, doc, widget, byte_range);
+		}
+
+		bytes = fz_open_null_n(ctx, fz_keep_stream(ctx, doc->file), byte_range, byte_range_len);
+	}
+	fz_always(ctx)
+	{
+		fz_free(ctx, byte_range);
+	}
+	fz_catch(ctx)
+	{
+		fz_rethrow(ctx);
+	}
+
+	return bytes;
 }
 
 int pdf_signature_widget_contents(fz_context *ctx, pdf_document *doc, pdf_widget *widget, char **contents)
@@ -1304,7 +1334,7 @@ int pdf_signature_widget_contents(fz_context *ctx, pdf_document *doc, pdf_widget
 	return pdf_to_str_len(ctx, c);
 }
 
-void pdf_signature_set_value(fz_context *ctx, pdf_document *doc, pdf_obj *field, pdf_signer *signer)
+void pdf_signature_set_value(fz_context *ctx, pdf_document *doc, pdf_obj *field, pdf_pkcs7_signer *signer)
 {
 	pdf_obj *v = NULL;
 	pdf_obj *indv;
@@ -1340,8 +1370,8 @@ void pdf_signature_set_value(fz_context *ctx, pdf_document *doc, pdf_obj *field,
 	contents = pdf_new_string(ctx, doc, buf, sizeof(buf));
 	pdf_dict_put_drop(ctx, v, PDF_NAME_Contents, contents);
 
-	pdf_dict_put_drop(ctx, v, PDF_NAME_Filter, PDF_NAME_Adobe_PPKLite);
-	pdf_dict_put_drop(ctx, v, PDF_NAME_SubFilter, PDF_NAME_adbe_pkcs7_detached);
+	pdf_dict_put(ctx, v, PDF_NAME_Filter, PDF_NAME_Adobe_PPKLite);
+	pdf_dict_put(ctx, v, PDF_NAME_SubFilter, PDF_NAME_adbe_pkcs7_detached);
 
 	/* Record details within the document structure so that contents
 	 * and byte_range can be updated with their correct values at
