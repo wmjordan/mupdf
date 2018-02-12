@@ -816,20 +816,6 @@ fz_tint_pixmap(fz_context *ctx, fz_pixmap *pix, int r, int g, int b)
 			s += pix->stride - pix->w * 4;
 		}
 	}
-	else if (pix->n == 3)
-	{
-		for (y = 0; y < pix->h; y++)
-		{
-			for (x = 0; x < pix->w; x++)
-			{
-				s[0] = fz_mul255(s[0], r);
-				s[1] = fz_mul255(s[1], g);
-				s[2] = fz_mul255(s[2], b);
-				s += 3;
-			}
-			s += pix->stride - pix->w * 3;
-		}
-	}
 	else if (pix->n == 2)
 	{
 		assert(pix->alpha);
