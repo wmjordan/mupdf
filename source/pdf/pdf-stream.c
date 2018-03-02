@@ -66,9 +66,10 @@ pdf_load_jbig2_globals(fz_context *ctx, pdf_document *doc, pdf_obj *dict)
 	fz_var(buf);
 
 	if ((globals = pdf_find_item(ctx, fz_drop_jbig2_globals_imp, dict)) != NULL)
-	{
 		return globals;
-	}
+
+	if (pdf_mark_obj(ctx, dict))
+		fz_throw(ctx, FZ_ERROR_GENERIC, "cyclic reference when loading JBIG2 globals");
 
 	fz_try(ctx)
 	{
@@ -79,6 +80,7 @@ pdf_load_jbig2_globals(fz_context *ctx, pdf_document *doc, pdf_obj *dict)
 	fz_always(ctx)
 	{
 		fz_drop_buffer(ctx, buf);
+		pdf_unmark_obj(ctx, dict);
 	}
 	fz_catch(ctx)
 	{
@@ -198,7 +200,9 @@ build_filter(fz_context *ctx, fz_stream *chain, pdf_document *doc, pdf_obj *f, p
 		{
 			fz_jbig2_globals *globals = NULL;
 			pdf_obj *obj = pdf_dict_get(ctx, p, PDF_NAME_JBIG2Globals);
-			if (pdf_is_indirect(ctx, obj))
+			if (!pdf_is_stream(ctx, obj))
+				fz_warn(ctx, "jbig2 globals is not a stream, skipping globals");
+			else
 				globals = pdf_load_jbig2_globals(ctx, doc, obj);
 			tmp = chain;
 			chain = NULL;

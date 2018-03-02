@@ -808,7 +808,7 @@ static void pdfapp_updatepage(pdfapp_t *app)
 
 	for (pannot = pdf_first_annot(app->ctx, (pdf_page*)app->page); pannot; pannot = pdf_next_annot(app->ctx, pannot))
 	{
-		if (pdf_annot_is_dirty(app->ctx, pannot))
+		if (pannot->has_new_ap)
 		{
 			fz_annot *annot = (fz_annot*)pannot;
 			fz_rect bounds;
@@ -826,6 +826,7 @@ static void pdfapp_updatepage(pdfapp_t *app)
 				fz_drop_device(app->ctx, idev);
 			fz_catch(app->ctx)
 				fz_rethrow(app->ctx);
+			pannot->has_new_ap = 0;
 		}
 	}
 
@@ -1684,6 +1685,8 @@ void pdfapp_onmouse(pdfapp_t *app, int x, int y, int btn, int modifiers, int sta
 
 						fz_var(opts);
 						fz_var(vals);
+						fz_var(nopts);
+						fz_var(nvals);
 
 						fz_try(ctx)
 						{
@@ -1703,7 +1706,12 @@ void pdfapp_onmouse(pdfapp_t *app, int x, int y, int btn, int modifiers, int sta
 						}
 						fz_always(ctx)
 						{
+							int i;
+							for (i=0; i < nopts; ++i)
+								fz_free(ctx, opts[i]);
 							fz_free(ctx, opts);
+							for (i=0; i < nvals; ++i)
+								fz_free(ctx, vals[i]);
 							fz_free(ctx, vals);
 						}
 						fz_catch(ctx)

@@ -1325,6 +1325,22 @@ JNIEXPORT jint JNICALL Java_com_artifex_mupdf_fitz_NativeDevice_beginTile
 JNIEXPORT void JNICALL Java_com_artifex_mupdf_fitz_NativeDevice_endTile
   (JNIEnv *, jobject);
 
+/*
+ * Class:     com_artifex_mupdf_fitz_NativeDevice
+ * Method:    beginLayer
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_com_artifex_mupdf_fitz_NativeDevice_beginLayer
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     com_artifex_mupdf_fitz_NativeDevice
+ * Method:    endLayer
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_com_artifex_mupdf_fitz_NativeDevice_endLayer
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif
@@ -1407,16 +1423,16 @@ extern "C" {
 #define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CIRCLE 2L
 #undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_DIAMOND
 #define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_DIAMOND 3L
-#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_OPENARROW
-#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_OPENARROW 4L
-#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CLOSEDARROW
-#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CLOSEDARROW 5L
+#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_OPEN_ARROW
+#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_OPEN_ARROW 4L
+#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CLOSED_ARROW
+#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CLOSED_ARROW 5L
 #undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_BUTT
 #define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_BUTT 6L
-#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_ROPENARR
-#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_ROPENARR 7L
-#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_RCLOSEDARROW
-#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_RCLOSEDARROW 8L
+#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_R_OPEN_ARROW
+#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_R_OPEN_ARROW 7L
+#undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_R_CLOSED_ARROW
+#define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_R_CLOSED_ARROW 8L
 #undef com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_SLASH
 #define com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_SLASH 9L
 /*

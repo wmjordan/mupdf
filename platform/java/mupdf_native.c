@@ -152,6 +152,7 @@ static jmethodID mid_Annotation_init;
 static jmethodID mid_ColorSpace_fromPointer;
 static jmethodID mid_ColorSpace_init;
 static jmethodID mid_Device_beginGroup;
+static jmethodID mid_Device_beginLayer;
 static jmethodID mid_Device_beginMask;
 static jmethodID mid_Device_beginTile;
 static jmethodID mid_Device_clipImageMask;
@@ -160,6 +161,7 @@ static jmethodID mid_Device_clipStrokePath;
 static jmethodID mid_Device_clipStrokeText;
 static jmethodID mid_Device_clipText;
 static jmethodID mid_Device_endGroup;
+static jmethodID mid_Device_endLayer;
 static jmethodID mid_Device_endMask;
 static jmethodID mid_Device_endTile;
 static jmethodID mid_Device_fillImage;
@@ -245,16 +247,16 @@ static int check_enums()
 	valid &= com_artifex_mupdf_fitz_PDFAnnotation_TYPE_3D == PDF_ANNOT_3D;
 	valid &= com_artifex_mupdf_fitz_PDFAnnotation_TYPE_UNKNOWN == PDF_ANNOT_UNKNOWN;
 
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_NONE == PDF_ANNOT_LINE_ENDING_NONE;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_SQUARE == PDF_ANNOT_LINE_ENDING_SQUARE;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CIRCLE == PDF_ANNOT_LINE_ENDING_CIRCLE;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_DIAMOND == PDF_ANNOT_LINE_ENDING_DIAMOND;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_OPENARROW == PDF_ANNOT_LINE_ENDING_OPENARROW;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CLOSEDARROW == PDF_ANNOT_LINE_ENDING_CLOSEDARROW;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_BUTT == PDF_ANNOT_LINE_ENDING_BUTT;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_ROPENARR == PDF_ANNOT_LINE_ENDING_ROPENARROW;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_RCLOSEDARROW == PDF_ANNOT_LINE_ENDING_RCLOSEDARROW;
-	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_SLASH == PDF_ANNOT_LINE_ENDING_SLASH;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_NONE == PDF_ANNOT_LE_NONE;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_SQUARE == PDF_ANNOT_LE_SQUARE;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CIRCLE == PDF_ANNOT_LE_CIRCLE;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_DIAMOND == PDF_ANNOT_LE_DIAMOND;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_OPEN_ARROW == PDF_ANNOT_LE_OPEN_ARROW;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_CLOSED_ARROW == PDF_ANNOT_LE_CLOSED_ARROW;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_BUTT == PDF_ANNOT_LE_BUTT;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_R_OPEN_ARROW == PDF_ANNOT_LE_R_OPEN_ARROW;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_R_CLOSED_ARROW == PDF_ANNOT_LE_R_CLOSED_ARROW;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_LINE_ENDING_SLASH == PDF_ANNOT_LE_SLASH;
 
 	return valid ? 1 : 0;
 }
@@ -459,6 +461,8 @@ static int find_fids(JNIEnv *env)
 	mid_Device_fillImageMask = get_method(&err, env, "fillImageMask", "(L"PKG"Image;L"PKG"Matrix;L"PKG"ColorSpace;[FF)V");
 	mid_Device_clipImageMask = get_method(&err, env, "clipImageMask", "(L"PKG"Image;L"PKG"Matrix;)V");
 	mid_Device_popClip = get_method(&err, env, "popClip", "()V");
+	mid_Device_beginLayer = get_method(&err, env, "beginLayer", "(Ljava/lang/String;)V");
+	mid_Device_endLayer = get_method(&err, env, "endLayer", "()V");
 	mid_Device_beginMask = get_method(&err, env, "beginMask", "(L"PKG"Rect;ZL"PKG"ColorSpace;[F)V");
 	mid_Device_endMask = get_method(&err, env, "endMask", "()V");
 	mid_Device_beginGroup = get_method(&err, env, "beginGroup", "(L"PKG"Rect;L"PKG"ColorSpace;ZZIF)V");
@@ -2341,6 +2345,31 @@ fz_java_device_pop_clip(fz_context *ctx, fz_device *dev)
 }
 
 static void
+fz_java_device_begin_layer(fz_context *ctx, fz_device *dev, const char *name)
+{
+	fz_java_device *jdev = (fz_java_device *)dev;
+	JNIEnv *env = jdev->env;
+	jstring jname;
+
+	jname = (*env)->NewStringUTF(env, name);
+
+	(*env)->CallVoidMethod(env, jdev->self, mid_Device_beginLayer, jname);
+	if ((*env)->ExceptionCheck(env))
+		fz_throw_java(ctx, env);
+}
+
+static void
+fz_java_device_end_layer(fz_context *ctx, fz_device *dev)
+{
+	fz_java_device *jdev = (fz_java_device *)dev;
+	JNIEnv *env = jdev->env;
+
+	(*env)->CallVoidMethod(env, jdev->self, mid_Device_endLayer);
+	if ((*env)->ExceptionCheck(env))
+		fz_throw_java(ctx, env);
+}
+
+static void
 fz_java_device_begin_mask(fz_context *ctx, fz_device *dev, const fz_rect *rect, int luminosity, fz_colorspace *cs, const float *bc, const fz_color_params *cs_params)
 {
 	fz_java_device *jdev = (fz_java_device *)dev;
@@ -2468,6 +2497,9 @@ static fz_device *fz_new_java_device(fz_context *ctx, JNIEnv *env, jobject self)
 
 		dev->super.begin_tile = fz_java_device_begin_tile;
 		dev->super.end_tile = fz_java_device_end_tile;
+
+		dev->super.begin_layer = fz_java_device_begin_layer;
+		dev->super.end_layer = fz_java_device_end_layer;
 	}
 	fz_catch(ctx)
 	{
@@ -2921,6 +2953,53 @@ FUN(NativeDevice_popClip)(JNIEnv *env, jobject self)
 	fz_catch(ctx)
 		jni_rethrow(env, ctx);
 }
+
+JNIEXPORT void JNICALL
+FUN(NativeDevice_beginLayer)(JNIEnv *env, jobject self, jstring jname)
+{
+	fz_context *ctx = get_context(env);
+	fz_device *dev = from_Device(env, self);
+	NativeDeviceInfo *info;
+	const char *name;
+
+	if (!ctx || !dev) return;
+
+	if (jname)
+	{
+		name = (*env)->GetStringUTFChars(env, jname, NULL);
+		if (!name) return;
+	}
+
+	info = lockNativeDevice(env, self);
+	fz_try(ctx)
+		fz_begin_layer(ctx, dev, name);
+	fz_always(ctx)
+	{
+		(*env)->ReleaseStringUTFChars(env, jname, name);
+		unlockNativeDevice(env, info);
+	}
+	fz_catch(ctx)
+		jni_rethrow(env, ctx);
+}
+
+JNIEXPORT void JNICALL
+FUN(NativeDevice_endLayer)(JNIEnv *env, jobject self)
+{
+	fz_context *ctx = get_context(env);
+	fz_device *dev = from_Device(env, self);
+	NativeDeviceInfo *info;
+
+	if (!ctx || !dev) return;
+
+	info = lockNativeDevice(env, self);
+	fz_try(ctx)
+		fz_end_layer(ctx, dev);
+	fz_always(ctx)
+		unlockNativeDevice(env, info);
+	fz_catch(ctx)
+		jni_rethrow(env, ctx);
+}
+
 
 JNIEXPORT void JNICALL
 FUN(NativeDevice_beginMask)(JNIEnv *env, jobject self, jobject jrect, jboolean luminosity, jobject jcs, jfloatArray jcolor, jint jcp)
@@ -9025,7 +9104,7 @@ FUN(PDFAnnotation_getInkList)(JNIEnv *env, jobject self)
 	fz_context *ctx = get_context(env);
 	pdf_annot *annot = from_PDFAnnotation(env, self);
 	int i, k, n, m;
-	float v[2];
+	fz_point v;
 	jobject jinklist;
 	jfloatArray jpath;
 
@@ -9058,14 +9137,14 @@ FUN(PDFAnnotation_getInkList)(JNIEnv *env, jobject self)
 		for (k = 0; k < m; k++)
 		{
 			fz_try(ctx)
-				pdf_annot_ink_list_stroke_vertex(ctx, annot, i, k, v);
+				v = pdf_annot_ink_list_stroke_vertex(ctx, annot, i, k);
 			fz_catch(ctx)
 			{
 				jni_rethrow(env, ctx);
 				return NULL;
 			}
 
-			(*env)->SetFloatArrayRegion(env, jpath, k * 2, 2, &v[0]);
+			(*env)->SetFloatArrayRegion(env, jpath, k * 2, 2, (float*)&v);
 			if ((*env)->ExceptionCheck(env)) return NULL;
 		}
 
@@ -9085,7 +9164,7 @@ FUN(PDFAnnotation_setInkList)(JNIEnv *env, jobject self, jobject jinklist)
 	pdf_annot *annot = from_PDFAnnotation(env, self);
 	int i, k, n, m;
 	jfloatArray jpath;
-	float *points = NULL;
+	fz_point *points = NULL;
 	int *counts = NULL;
 
 	if (!ctx || !annot) return;
@@ -9108,7 +9187,7 @@ FUN(PDFAnnotation_setInkList)(JNIEnv *env, jobject self, jobject jinklist)
 	fz_try(ctx)
 	{
 		counts = fz_malloc(ctx, n * sizeof(int));
-		points = fz_malloc(ctx, m * 2 * sizeof(float));
+		points = fz_malloc(ctx, m * sizeof(fz_point));
 	}
 	fz_catch(ctx)
 	{
@@ -9131,7 +9210,7 @@ FUN(PDFAnnotation_setInkList)(JNIEnv *env, jobject self, jobject jinklist)
 			continue;
 
 		counts[i] = (*env)->GetArrayLength(env, jpath);
-		(*env)->GetFloatArrayRegion(env, jpath, 0, counts[i], &points[k]);
+		(*env)->GetFloatArrayRegion(env, jpath, 0, counts[i], (float*)&points[k]);
 		if ((*env)->ExceptionCheck(env))
 		{
 			fz_free(ctx, counts);
@@ -9191,7 +9270,7 @@ FUN(PDFAnnotation_getVertices)(JNIEnv *env, jobject self)
 	fz_context *ctx = get_context(env);
 	pdf_annot *annot = from_PDFAnnotation(env, self);
 	int i, n;
-	float vertex[2];
+	fz_point v;
 	jobject jvertices;
 
 	if (!ctx || !annot) return NULL;
@@ -9210,14 +9289,14 @@ FUN(PDFAnnotation_getVertices)(JNIEnv *env, jobject self)
 	for (i = 0; i < n; i++)
 	{
 		fz_try(ctx)
-			pdf_annot_vertex(ctx, annot, i, vertex);
+			v = pdf_annot_vertex(ctx, annot, i);
 		fz_catch(ctx)
 		{
 			jni_rethrow(env, ctx);
 			return NULL;
 		}
 
-		(*env)->SetFloatArrayRegion(env, jvertices, i * 2, 2, &vertex[0]);
+		(*env)->SetFloatArrayRegion(env, jvertices, i * 2, 2, (float*)&v);
 		if ((*env)->ExceptionCheck(env)) return NULL;
 	}
 
@@ -9249,7 +9328,7 @@ FUN(PDFAnnotation_setVertices)(JNIEnv *env, jobject self, jobject jvertices)
 	}
 
 	fz_try(ctx)
-		pdf_set_annot_vertices(ctx, annot, n, vertices);
+		pdf_set_annot_vertices(ctx, annot, n, (fz_point*)vertices);
 	fz_always(ctx)
 		fz_free(ctx, vertices);
 	fz_catch(ctx)
@@ -9300,16 +9379,19 @@ FUN(PDFAnnotation_getLineEndingStyles)(JNIEnv *env, jobject self)
 {
 	fz_context *ctx = get_context(env);
 	pdf_annot *annot = from_PDFAnnotation(env, self);
+	enum pdf_line_ending s = 0, e = 0;
 	int line_endings[2];
 	jintArray jline_endings = NULL;
 
 	if (!ctx || !annot) return NULL;
 
 	fz_try(ctx)
-		pdf_annot_line_ending_styles(ctx, annot, &line_endings[0], &line_endings[1]);
+		pdf_annot_line_ending_styles(ctx, annot, &s, &e);
 	fz_catch(ctx)
 		jni_rethrow(env, ctx);
 
+	line_endings[0] = s;
+	line_endings[1] = e;
 	jline_endings = (*env)->NewIntArray(env, 2);
 	(*env)->SetIntArrayRegion(env, jline_endings, 0, 2, &line_endings[0]);
 	if ((*env)->ExceptionCheck(env)) return NULL;
