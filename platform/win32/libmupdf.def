@@ -15,6 +15,7 @@ EXPORTS
 	fz_open_archive
 	fz_open_archive_with_stream
 	fz_open_directory
+	fz_is_directory
 	fz_drop_archive
 	fz_archive_format
 	fz_count_archive_entries
@@ -79,11 +80,23 @@ EXPORTS
 	fz_set_cmm_engine
 	fz_lookup_rendering_intent
 	fz_rendering_intent_name
+	fz_colorspace_type
 	fz_colorspace_is_subtractive
-	fz_colorspace_is_device_n
 	fz_colorspace_device_n_has_only_cmyk
 	fz_colorspace_device_n_has_cmyk
+	fz_colorspace_is_gray
+	fz_colorspace_is_rgb
+	fz_colorspace_is_bgr
+	fz_colorspace_is_cmyk
+	fz_colorspace_is_lab
+	fz_colorspace_is_indexed
+	fz_colorspace_is_device_n
+	fz_colorspace_is_device
+	fz_colorspace_is_icc
+	fz_colorspace_is_cal
 	fz_colorspace_is_device_gray
+	fz_colorspace_is_device_cmyk
+	fz_colorspace_is_lab_icc
 	fz_device_gray
 	fz_device_rgb
 	fz_device_bgr
@@ -100,12 +113,6 @@ EXPORTS
 	fz_drop_colorspace
 	fz_drop_colorspace_imp
 	fz_colorspace_base
-	fz_colorspace_is_icc
-	fz_colorspace_is_lab
-	fz_colorspace_is_lab_icc
-	fz_colorspace_is_cal
-	fz_colorspace_is_indexed
-	fz_set_icc_bgr
 	fz_colorspace_n
 	fz_colorspace_name
 	fz_clamp_color
@@ -182,8 +189,16 @@ EXPORTS
 	fz_calloc_no_throw
 	fz_malloc_array_no_throw
 	fz_resize_array_no_throw
-	fz_strdup_no_throw
-	fz_gen_id
+	fz_drand48
+	fz_lrand48
+	fz_mrand48
+	fz_erand48
+	fz_jrand48
+	fz_nrand48
+	fz_lcong48
+	fz_seed48
+	fz_srand48
+	fz_memrnd
 	fz_md5_init
 	fz_md5_update
 	fz_md5_final
@@ -226,6 +241,8 @@ EXPORTS
 	fz_end_tile
 	fz_render_flags
 	fz_set_default_colorspaces
+	fz_begin_layer
+	fz_end_layer
 	fz_new_device_of_size
 	fz_close_device
 	fz_drop_device
@@ -282,8 +299,9 @@ EXPORTS
 	fz_page_separations
 	fz_page_uses_overprint
 	fz_save_gproof
-	fz_open_copy
+	fz_open_null_n
 	fz_open_null
+	fz_open_pdf_stream
 	fz_open_concat
 	fz_concat_push_drop
 	fz_open_arc4
@@ -298,6 +316,8 @@ EXPORTS
 	fz_open_predict
 	fz_open_jbig2d
 	fz_load_jbig2_globals
+	fz_keep_jbig2_globals
+	fz_drop_jbig2_globals
 	fz_drop_jbig2_globals_imp
 	fz_open_sgilog16
 	fz_open_sgilog24
@@ -317,12 +337,13 @@ EXPORTS
 	fz_load_system_font
 	fz_load_system_cjk_font
 	fz_load_fallback_font
-	fz_load_fallback_symbol_font
-	fz_load_fallback_emoji_font
 	fz_new_type3_font
 	fz_new_font_from_memory
 	fz_new_font_from_buffer
 	fz_new_font_from_file
+	fz_new_base14_font
+	fz_new_cjk_font
+	fz_new_builtin_font
 	fz_keep_font
 	fz_drop_font
 	fz_set_font_bbox
@@ -336,6 +357,7 @@ EXPORTS
 	fz_get_glyph_name
 	fz_font_ascender
 	fz_font_descender
+	fz_font_digest
 	fz_hb_lock
 	fz_hb_unlock
 	fz_atof
@@ -351,7 +373,9 @@ EXPORTS
 	fz_pre_rotate
 	fz_translate
 	fz_pre_translate
+	fz_transform_page
 	fz_invert_matrix
+	fz_try_invert_matrix
 	fz_is_rectilinear
 	fz_matrix_expansion
 	fz_intersect_rect
@@ -361,7 +385,9 @@ EXPORTS
 	fz_round_rect
 	fz_rect_from_irect
 	fz_expand_rect
+	fz_expand_irect
 	fz_include_point_in_rect
+	fz_translate_rect
 	fz_translate_irect
 	fz_contains_rect
 	fz_transform_point
@@ -371,6 +397,10 @@ EXPORTS
 	fz_normalize_vector
 	fz_gridfit_matrix
 	fz_matrix_max_expansion
+	fz_rect_from_quad
+	fz_transform_quad
+	fz_is_point_inside_rect
+	fz_is_point_inside_irect
 	fz_getopt
 	fz_purge_glyph_cache
 	fz_render_glyph_pixmap
@@ -427,6 +457,8 @@ EXPORTS
 	fz_load_pnm_info
 	fz_load_tiff_subimage_count
 	fz_load_tiff_subimage
+	fz_load_pnm_subimage_count
+	fz_load_pnm_subimage
 	fz_image_resolution
 	fz_compressed_image_tile
 	fz_set_compressed_image_tile
@@ -490,8 +522,10 @@ EXPORTS
 	fz_write_vprintf
 	fz_seek_output
 	fz_tell_output
+	fz_flush_output
 	fz_close_output
 	fz_drop_output
+	fz_stream_from_output
 	fz_write_data
 	fz_write_string
 	fz_write_int32_be
@@ -507,6 +541,11 @@ EXPORTS
 	fz_asprintf
 	fz_tempfilename
 	fz_save_buffer
+	fz_new_asciihex_output
+	fz_new_ascii85_output
+	fz_new_rle_output
+	fz_new_arc4_output
+	fz_new_deflate_output
 	fz_walk_path
 	fz_new_path
 	fz_keep_path
@@ -562,7 +601,6 @@ EXPORTS
 	fz_tint_pixmap
 	fz_invert_pixmap_rect
 	fz_gamma_pixmap
-	fz_unmultiply_pixmap
 	fz_convert_pixmap
 	fz_drop_pixmap_imp
 	fz_copy_pixmap_rect
@@ -595,10 +633,8 @@ EXPORTS
 	fz_add_separation_equivalents
 	fz_set_separation_behavior
 	fz_separation_current_behavior
-	fz_separations_all_composite
 	fz_separation_name
 	fz_count_separations
-	fz_separations_controllable
 	fz_count_active_separations
 	fz_clone_separations_for_overprint
 	fz_convert_separation_colors
@@ -623,6 +659,7 @@ EXPORTS
 	fz_remove_item
 	fz_empty_store
 	fz_store_scavenge
+	fz_store_scavenge_external
 	fz_shrink_store
 	fz_filter_store
 	fz_debug_store
@@ -661,6 +698,7 @@ EXPORTS
 	fz_keep_stream
 	fz_read_best
 	fz_read_line
+	fz_strnlen
 	fz_strsep
 	fz_strlcpy
 	fz_strlcat
@@ -674,12 +712,9 @@ EXPORTS
 	fz_runelen
 	fz_utflen
 	fz_strtof
-	fz_strtof_no_exp
 	fz_grisu
 	fz_is_page_range
 	fz_parse_page_range
-	fz_stext_char_count
-	fz_stext_char_at
 	fz_new_stext_page
 	fz_drop_stext_page
 	fz_print_stext_page_as_html
@@ -692,6 +727,7 @@ EXPORTS
 	fz_print_stext_page_as_text
 	fz_search_stext_page
 	fz_highlight_selection
+	fz_snap_selection
 	fz_copy_selection
 	fz_parse_stext_options
 	fz_new_stext_device
@@ -706,7 +742,6 @@ EXPORTS
 	fz_show_glyph
 	fz_show_string
 	fz_bound_text
-	fz_clone_text
 	fz_text_language_from_string
 	fz_string_from_text_language
 
@@ -760,6 +795,9 @@ EXPORTS
 	fz_drop_document_writer
 	fz_new_pixmap_writer
 	fz_parse_xml
+	fz_drop_xml
+	fz_detach_xml
+	fz_xml_root
 	fz_xml_prev
 	fz_xml_next
 	fz_xml_up
@@ -768,8 +806,7 @@ EXPORTS
 	fz_xml_tag
 	fz_xml_att
 	fz_xml_text
-	fz_drop_xml
-	fz_detach_xml
+	fz_debug_xml
 	fz_xml_find
 	fz_xml_find_next
 	fz_xml_find_down
@@ -778,6 +815,10 @@ EXPORTS
 
 	pdf_string_from_annot_type
 	pdf_annot_type_from_string
+	pdf_line_ending_from_name
+	pdf_line_ending_from_string
+	pdf_name_from_line_ending
+	pdf_string_from_line_ending
 	pdf_first_annot
 	pdf_next_annot
 	pdf_bound_annot
@@ -799,6 +840,7 @@ EXPORTS
 	pdf_annot_has_ink_list
 	pdf_annot_has_quad_points
 	pdf_annot_has_vertices
+	pdf_annot_has_line
 	pdf_annot_has_interior_color
 	pdf_annot_has_line_ending_styles
 	pdf_annot_has_icon_name
@@ -807,8 +849,12 @@ EXPORTS
 	pdf_annot_flags
 	pdf_annot_rect
 	pdf_annot_border
+	pdf_annot_opacity
 	pdf_annot_color
 	pdf_annot_interior_color
+	pdf_annot_quadding
+	pdf_annot_MK_BG
+	pdf_annot_MK_BC
 	pdf_annot_quad_point_count
 	pdf_annot_quad_point
 	pdf_annot_ink_list_count
@@ -817,32 +863,47 @@ EXPORTS
 	pdf_set_annot_flags
 	pdf_set_annot_rect
 	pdf_set_annot_border
+	pdf_set_annot_opacity
 	pdf_set_annot_color
 	pdf_set_annot_interior_color
+	pdf_set_annot_quadding
 	pdf_set_annot_quad_points
+	pdf_clear_annot_quad_points
+	pdf_add_annot_quad_point
 	pdf_set_annot_ink_list
-	pdf_set_annot_line_ending_styles
-	pdf_set_annot_vertices
+	pdf_clear_annot_ink_list
+	pdf_add_annot_ink_list
 	pdf_set_annot_icon_name
 	pdf_set_annot_is_open
+	pdf_annot_line_start_style
+	pdf_annot_line_end_style
 	pdf_annot_line_ending_styles
+	pdf_set_annot_line_start_style
+	pdf_set_annot_line_end_style
+	pdf_set_annot_line_ending_styles
 	pdf_annot_icon_name
 	pdf_annot_is_open
+	pdf_annot_line
+	pdf_set_annot_line
 	pdf_annot_vertex_count
 	pdf_annot_vertex
+	pdf_set_annot_vertices
+	pdf_clear_annot_vertices
+	pdf_add_annot_vertex
+	pdf_set_annot_vertex
 	pdf_set_text_annot_position
-	pdf_copy_annot_contents
+	pdf_annot_contents
 	pdf_set_annot_contents
-	pdf_copy_annot_author
+	pdf_annot_author
 	pdf_set_annot_author
 	pdf_annot_modification_date
 	pdf_set_annot_modification_date
-	pdf_set_free_text_details
+	pdf_parse_default_appearance
+	pdf_print_default_appearance
+	pdf_annot_default_appearance
+	pdf_set_annot_default_appearance
 	pdf_new_annot
 	pdf_dirty_annot
-	pdf_clean_annot
-	pdf_annot_is_dirty
-
 	pdf_clean_file
 	pdf_new_cmap
 	pdf_keep_cmap
@@ -875,10 +936,10 @@ EXPORTS
 	pdf_crypt_length
 	pdf_crypt_key
 	pdf_print_crypt
-	pdf_keep_signer
-	pdf_drop_signer
 	pdf_write_digest
-	pdf_check_signature
+	pdf_document_permissions
+	pdf_encrypt_data
+	pdf_encrypted_len
 	pdf_open_document
 	pdf_open_document_with_stream
 	pdf_drop_document
@@ -939,9 +1000,11 @@ EXPORTS
 	pdf_field_type
 	pdf_set_field_type
 	pdf_field_value
-	pdf_signatures_supported
 	pdf_load_encoding
 	pdf_lookup_agl
+	pdf_cyrillic_from_unicode
+	pdf_greek_from_unicode
+	pdf_winansi_from_unicode
 	pdf_set_font_wmode
 	pdf_set_default_hmtx
 	pdf_set_default_vmtx
@@ -961,11 +1024,10 @@ EXPORTS
 	pdf_keep_font
 	pdf_drop_font
 	pdf_print_font
-	pdf_measure_text
-	pdf_text_stride
 	pdf_run_glyph
 	pdf_add_simple_font
 	pdf_add_cid_font
+	pdf_add_cjk_font
 	pdf_font_writing_supported
 	pdf_new_processor
 	pdf_close_processor
@@ -994,8 +1056,6 @@ EXPORTS
 	pdf_js_get_event
 	pdf_js_execute
 
-	pdf_new_null
-	pdf_new_bool
 	pdf_new_int
 	pdf_new_real
 	pdf_new_name
@@ -1009,7 +1069,6 @@ EXPORTS
 	pdf_copy_array
 	pdf_copy_dict
 	pdf_deep_copy_obj
-	pdf_new_obj_from_str
 	pdf_keep_obj
 	pdf_drop_obj
 	pdf_is_null
@@ -1026,6 +1085,7 @@ EXPORTS
 	pdf_is_stream
 	pdf_objcmp
 	pdf_objcmp_resolve
+	pdf_name_eq
 	pdf_obj_marked
 	pdf_mark_obj
 	pdf_unmark_obj
@@ -1039,6 +1099,8 @@ EXPORTS
 	pdf_to_int64
 	pdf_to_real
 	pdf_to_name
+	pdf_to_text_string
+	pdf_to_string
 	pdf_to_str_buf
 	pdf_to_str_len
 	pdf_to_num
@@ -1063,6 +1125,7 @@ EXPORTS
 	pdf_dict_geta
 	pdf_dict_gets
 	pdf_dict_getsa
+	pdf_dict_get_inheritable
 	pdf_dict_put
 	pdf_dict_put_drop
 	pdf_dict_get_put_drop
@@ -1075,18 +1138,51 @@ EXPORTS
 	pdf_dict_del
 	pdf_dict_dels
 	pdf_sort_dict
+	pdf_dict_put_bool
+	pdf_dict_put_int
+	pdf_dict_put_real
+	pdf_dict_put_name
+	pdf_dict_put_string
+	pdf_dict_put_text_string
+	pdf_dict_put_rect
+	pdf_dict_put_matrix
+	pdf_dict_put_array
+	pdf_dict_put_dict
+	pdf_dict_get_bool
+	pdf_dict_get_int
+	pdf_dict_get_real
+	pdf_dict_get_name
+	pdf_dict_get_string
+	pdf_dict_get_text_string
+	pdf_dict_get_rect
+	pdf_dict_get_matrix
+	pdf_array_push_bool
+	pdf_array_push_int
+	pdf_array_push_real
+	pdf_array_push_name
+	pdf_array_push_string
+	pdf_array_push_text_string
+	pdf_array_push_array
+	pdf_array_push_dict
+	pdf_array_get_bool
+	pdf_array_get_int
+	pdf_array_get_real
+	pdf_array_get_string
+	pdf_array_get_text_string
+	pdf_array_get_rect
+	pdf_array_get_matrix
 	pdf_set_obj_parent
 	pdf_obj_refs
 	pdf_obj_parent_num
 	pdf_sprint_obj
+	pdf_sprint_encrypted_obj
 	pdf_print_obj
-	pdf_to_utf8
-	pdf_load_stream_as_utf8
+	pdf_print_encrypted_obj
+	pdf_debug_obj
+	pdf_new_utf8_from_pdf_string
+	pdf_new_utf8_from_pdf_string_obj
+	pdf_new_utf8_from_pdf_stream_obj
 	pdf_load_stream_or_string_as_utf8
-	pdf_to_ucs2
-	pdf_to_utf8_name
-	pdf_from_ucs2
-	pdf_to_ucs2_buf
 	pdf_to_rect
 	pdf_to_matrix
 	pdf_get_indirect_document
@@ -1156,11 +1252,8 @@ EXPORTS
 	pdf_load_pattern
 	pdf_keep_pattern
 	pdf_drop_pattern
-	pdf_load_xobject
 	pdf_new_xobject
-	pdf_keep_xobject
-	pdf_drop_xobject
-	pdf_update_xobject_contents
+	pdf_update_xobject
 	pdf_xobject_resources
 	pdf_xobject_bbox
 	pdf_xobject_matrix
@@ -1176,6 +1269,8 @@ EXPORTS
 	pdf_add_object
 	pdf_add_object_drop
 	pdf_add_stream
+	pdf_add_new_dict
+	pdf_add_new_array
 	pdf_cache_object
 	pdf_count_objects
 	pdf_resolve_indirect

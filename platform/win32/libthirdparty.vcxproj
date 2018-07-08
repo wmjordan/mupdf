@@ -45,7 +45,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5EDCF4FD-0291-4FB9-8D96-D58957CA5E3C}</ProjectGuid>
     <RootNamespace>mupdf</RootNamespace>
-    <WindowsTargetPlatformVersion>7</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>7.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseJava|Win32'" Label="Configuration">
@@ -137,7 +137,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <_ProjectFileVersion>15.0.26919.1</_ProjectFileVersion>
+    <_ProjectFileVersion>15.0.27625.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(Configuration)\</OutDir>
@@ -472,7 +472,6 @@
     <ClCompile Include="..\..\thirdparty\libjpeg\jutils.c" />
     <ClCompile Include="..\..\thirdparty\mujs\one.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\bio.c" />
-    <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\cidx_manager.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\cio.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\dwt.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\event.c" />
@@ -484,17 +483,13 @@
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\mct.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\mqc.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\openjpeg.c" />
-    <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\phix_manager.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\pi.c" />
-    <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\ppix_manager.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\raw.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\t1.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\t2.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\tcd.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\tgt.c" />
-    <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\thix_manager.c" />
     <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\thread.c" />
-    <ClCompile Include="..\..\thirdparty\openjpeg\src\lib\openjp2\tpix_manager.c" />
     <ClCompile Include="..\..\thirdparty\zlib\adler32.c" />
     <ClCompile Include="..\..\thirdparty\zlib\compress.c" />
     <ClCompile Include="..\..\thirdparty\zlib\crc32.c" />
@@ -606,10 +601,10 @@
     <ClInclude Include="..\..\thirdparty\harfbuzz\src\hb.h" />
     <ClInclude Include="..\..\thirdparty\lcms2\include\lcms2art.h" />
     <ClInclude Include="..\..\thirdparty\lcms2\include\lcms2art_plugin.h" />
+    <ClInclude Include="..\..\thirdparty\lcms2\src\extra_xform.h" />
     <ClInclude Include="..\..\thirdparty\lcms2\src\lcms2_internal.h" />
     <ClInclude Include="..\..\thirdparty\mujs\mujs.h" />
     <ClInclude Include="..\..\thirdparty\openjpeg\src\lib\openjp2\bio.h" />
-    <ClInclude Include="..\..\thirdparty\openjpeg\src\lib\openjp2\cidx_manager.h" />
     <ClInclude Include="..\..\thirdparty\openjpeg\src\lib\openjp2\cio.h" />
     <ClInclude Include="..\..\thirdparty\openjpeg\src\lib\openjp2\dwt.h" />
     <ClInclude Include="..\..\thirdparty\openjpeg\src\lib\openjp2\event.h" />
