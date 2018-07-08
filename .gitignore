@@ -66,3 +66,4 @@ platform/win32/x64
 .vs
 *.filters
 *.log
+/platform/win32/Win32/Release

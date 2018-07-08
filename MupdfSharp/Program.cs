@@ -16,8 +16,7 @@ namespace MupdfSharp
 			for (int i = 0; i < pn; i++) { // iterate through each pages
 				Console.WriteLine ("Rendering page " + (i + 1));
 				IntPtr p = NativeMethods.LoadPage (ctx, doc, i); // loads the page (first page number is 0)
-				Rectangle b = new Rectangle ();
-				NativeMethods.BoundPage (ctx, p, ref b); // gets the page size
+				Rectangle b = NativeMethods.BoundPage (ctx, p); // gets the page size
 
 				using (var bmp = RenderPage (ctx, doc, p, b)) { // renders the page and converts the result to Bitmap
 					Console.WriteLine ("Saving picture: " + (i+1) + ".png");
@@ -53,9 +52,9 @@ namespace MupdfSharp
 
 			// creates a drawing device
 			var im = Matrix.Identity;
-			dev = NativeMethods.NewDrawDevice (context, ref im, pix);
+			dev = NativeMethods.NewDrawDevice (context, im, pix);
 			// draws the page on the device created from the pixmap
-			NativeMethods.RunPage (context, page, dev, ref ctm, IntPtr.Zero);
+			NativeMethods.RunPage (context, page, dev, ctm, IntPtr.Zero);
 
 			NativeMethods.CloseDevice(context, dev);
 			NativeMethods.DropDevice (context, dev); // frees the resources consumed by the device
@@ -115,7 +114,7 @@ namespace MupdfSharp
 			const uint FZ_STORE_DEFAULT = 256 << 20;
 			const string DLL = "MuPDFLib.dll";
 			// please modify the version number to match the FZ_VERSION definition in "fitz\version.h" file
-			const string FZ_VERSION = "1.12.0";
+			const string FZ_VERSION = "1.13.0";
 
 			[DllImport(DLL, EntryPoint = "fz_new_context_imp", CallingConvention = CC.Cdecl, BestFitMapping = false)]
 			static extern IntPtr NewContext(IntPtr alloc, IntPtr locks, uint max_store, [MarshalAs(UnmanagedType.LPStr)] string fz_version);
@@ -147,7 +146,7 @@ namespace MupdfSharp
 			public static extern int CountPages (IntPtr ctx, IntPtr doc);
 
 			[DllImport (DLL, EntryPoint = "pdf_bound_page")]
-			public static extern void BoundPage (IntPtr ctx, IntPtr page, ref Rectangle bound);
+			public static extern Rectangle BoundPage (IntPtr ctx, IntPtr page);
 
 			[DllImport (DLL, EntryPoint = "fz_clear_pixmap_with_value")]
 			public static extern void ClearPixmap (IntPtr ctx, IntPtr pix, int byteValue);
@@ -182,13 +181,13 @@ namespace MupdfSharp
 			public static extern IntPtr LoadPage (IntPtr ctx, IntPtr doc, int pageNumber);
 
 			[DllImport (DLL, EntryPoint = "fz_new_draw_device")]
-			public static extern IntPtr NewDrawDevice (IntPtr ctx, ref Matrix matrix, IntPtr pix);
+			public static extern IntPtr NewDrawDevice (IntPtr ctx, Matrix matrix, IntPtr pix);
 
 			[DllImport (DLL, EntryPoint = "fz_new_pixmap")]
 			public static extern IntPtr NewPixmap (IntPtr ctx, IntPtr colorspace, int width, int height, IntPtr separation, int alpha);
 
 			[DllImport (DLL, EntryPoint = "pdf_run_page")]
-			public static extern void RunPage (IntPtr ctx, IntPtr page, IntPtr dev, ref Matrix transform, IntPtr cookie);
+			public static extern void RunPage (IntPtr ctx, IntPtr page, IntPtr dev, Matrix transform, IntPtr cookie);
 
 			[DllImport (DLL, EntryPoint = "fz_drop_pixmap")]
 			public static extern void DropPixmap (IntPtr ctx, IntPtr pix);

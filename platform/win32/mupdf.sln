@@ -1,20 +1,16 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual Studio 2005
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2035
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mupdf", "mupdf.vcproj", "{E74F29F0-FA43-4ADC-B92C-6AFA08E4A417}"
 	ProjectSection(ProjectDependencies) = postProject
 		{5F615F91-DFF8-4F05-BF48-6222B7D86519} = {5F615F91-DFF8-4F05-BF48-6222B7D86519}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libthirdparty", "libthirdparty.vcproj", "{5EDCF4FD-0291-4FB9-8D96-D58957CA5E3C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libthirdparty", "libthirdparty.vcxproj", "{5EDCF4FD-0291-4FB9-8D96-D58957CA5E3C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libmupdf", "libmupdf.vcproj", "{5F615F91-DFF8-4F05-BF48-6222B7D86519}"
-	ProjectSection(ProjectDependencies) = postProject
-		{52DCAB29-C8EE-4422-954C-29AFA6B33E22} = {52DCAB29-C8EE-4422-954C-29AFA6B33E22}
-		{22462382-B30D-42A5-BF07-EE1A35E25D21} = {22462382-B30D-42A5-BF07-EE1A35E25D21}
-		{5EDCF4FD-0291-4FB9-8D96-D58957CA5E3C} = {5EDCF4FD-0291-4FB9-8D96-D58957CA5E3C}
-		{B0091365-C9BA-4F40-AE2B-EF93702871B2} = {B0091365-C9BA-4F40-AE2B-EF93702871B2}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libmupdf", "libmupdf.vcxproj", "{5F615F91-DFF8-4F05-BF48-6222B7D86519}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mudraw", "mudraw.vcproj", "{0B51171B-B10E-4EAC-8FFA-19226A1828A3}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -48,10 +44,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mupdf-gl", "mupdf-gl.vcproj
 		{A1B75D29-9F5C-4A0F-B368-322A10477D0C} = {A1B75D29-9F5C-4A0F-B368-322A10477D0C}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libresources", "libresources.vcproj", "{52DCAB29-C8EE-4422-954C-29AFA6B33E22}"
-	ProjectSection(ProjectDependencies) = postProject
-		{BFE316B3-BD90-433A-A20D-C73975F1CAA7} = {BFE316B3-BD90-433A-A20D-C73975F1CAA7}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libresources", "libresources.vcxproj", "{52DCAB29-C8EE-4422-954C-29AFA6B33E22}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "muraster", "muraster.vcproj", "{0FDC74D7-D18C-45CE-94D6-EDFCC5A0CDF2}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -93,9 +86,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libmutool", "libmutool.vcpr
 		{5F615F91-DFF8-4F05-BF48-6222B7D86519} = {5F615F91-DFF8-4F05-BF48-6222B7D86519}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpkcs7", "libpkcs7.vcproj", "{22462382-B30D-42A5-BF07-EE1A35E25D21}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpkcs7", "libpkcs7.vcxproj", "{22462382-B30D-42A5-BF07-EE1A35E25D21}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bin2coff", "bin2coff.vcproj", "{BFE316B3-BD90-433A-A20D-C73975F1CAA7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bin2coff", "bin2coff.vcxproj", "{BFE316B3-BD90-433A-A20D-C73975F1CAA7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -816,5 +809,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {ADB876F2-86A8-4559-AE98-5D51CA2883EF}
 	EndGlobalSection
 EndGlobal
