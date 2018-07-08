@@ -1,6 +1,7 @@
 #include "pdfapp.h"
 #include "curl_stream.h"
 #include "mupdf/helpers/pkcs7-check.h"
+#include "mupdf/helpers/pkcs7-openssl.h"
 
 #include <string.h>
 #include <limits.h>
@@ -131,7 +132,7 @@ void pdfapp_init(fz_context *ctx, pdfapp_t *app)
 
 	app->transition.duration = 0.25f;
 	app->transition.type = FZ_TRANSITION_FADE;
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
 	app->colorspace = fz_device_bgr(ctx);
 #else
 	app->colorspace = fz_device_rgb(ctx);
@@ -146,10 +147,9 @@ void pdfapp_setresolution(pdfapp_t *app, int res)
 	app->resolution = res;
 }
 
-void pdfapp_invert(pdfapp_t *app, const fz_rect *rect)
+void pdfapp_invert(pdfapp_t *app, fz_rect rect)
 {
-	fz_irect b;
-	fz_invert_pixmap_rect(app->ctx, app->image, fz_round_rect(&b, rect));
+	fz_invert_pixmap_rect(app->ctx, app->image, fz_round_rect(rect));
 }
 
 void pdfapp_reloadfile(pdfapp_t *app)
@@ -262,7 +262,7 @@ static int make_fake_doc(pdfapp_t *app)
 		/* Create enough copies of our blank(ish) page so that the
 		 * page number is preserved if and when a subsequent load
 		 * works. */
-		page_obj = pdf_add_page(ctx, pdf, &mediabox, 0, NULL, contents);
+		page_obj = pdf_add_page(ctx, pdf, mediabox, 0, NULL, contents);
 		for (i = 0; i < app->pagecount; i++)
 			pdf_insert_page(ctx, pdf, -1, page_obj);
 	}
@@ -606,7 +606,7 @@ int pdfapp_preclose(pdfapp_t *app)
 
 static void pdfapp_viewctm(fz_matrix *mat, pdfapp_t *app)
 {
-	fz_pre_rotate(fz_scale(mat, app->resolution/72.0f, app->resolution/72.0f), app->rotate);
+	*mat = fz_transform_page(app->page_bbox, app->resolution, app->rotate);
 }
 
 static void pdfapp_panview(pdfapp_t *app, int newx, int newy)
@@ -671,8 +671,7 @@ static void pdfapp_loadpage(pdfapp_t *app, int no_cache)
 	fz_try(app->ctx)
 	{
 		app->page = fz_load_page(app->ctx, app->doc, app->pageno - 1);
-
-		fz_bound_page(app->ctx, app->page, &app->page_bbox);
+		app->page_bbox = fz_bound_page(app->ctx, app->page);
 	}
 	fz_catch(app->ctx)
 	{
@@ -687,19 +686,19 @@ static void pdfapp_loadpage(pdfapp_t *app, int no_cache)
 	{
 		fz_annot *annot;
 		/* Create display lists */
-		app->page_list = fz_new_display_list(app->ctx, NULL);
+		app->page_list = fz_new_display_list(app->ctx, fz_infinite_rect);
 		mdev = fz_new_list_device(app->ctx, app->page_list);
 		if (no_cache)
 			fz_enable_device_hints(app->ctx, mdev, FZ_NO_CACHE);
 		cookie.incomplete_ok = 1;
-		fz_run_page_contents(app->ctx, app->page, mdev, &fz_identity, &cookie);
+		fz_run_page_contents(app->ctx, app->page, mdev, fz_identity, &cookie);
 		fz_close_device(app->ctx, mdev);
 		fz_drop_device(app->ctx, mdev);
 		mdev = NULL;
-		app->annotations_list = fz_new_display_list(app->ctx, NULL);
+		app->annotations_list = fz_new_display_list(app->ctx, fz_infinite_rect);
 		mdev = fz_new_list_device(app->ctx, app->annotations_list);
 		for (annot = fz_first_annot(app->ctx, app->page); annot; annot = fz_next_annot(app->ctx, annot))
-			fz_run_annot(app->ctx, annot, mdev, &fz_identity, &cookie);
+			fz_run_annot(app->ctx, annot, mdev, fz_identity, &cookie);
 		if (cookie.incomplete)
 		{
 			app->incomplete = 1;
@@ -757,10 +756,10 @@ static void pdfapp_recreate_annotationslist(pdfapp_t *app)
 	{
 		fz_annot *annot;
 		/* Create display list */
-		app->annotations_list = fz_new_display_list(app->ctx, NULL);
+		app->annotations_list = fz_new_display_list(app->ctx, fz_infinite_rect);
 		mdev = fz_new_list_device(app->ctx, app->annotations_list);
 		for (annot = fz_first_annot(app->ctx, app->page); annot; annot = fz_next_annot(app->ctx, annot))
-			fz_run_annot(app->ctx, annot, mdev, &fz_identity, &cookie);
+			fz_run_annot(app->ctx, annot, mdev, fz_identity, &cookie);
 		if (cookie.incomplete)
 		{
 			app->incomplete = 1;
@@ -786,12 +785,12 @@ static void pdfapp_recreate_annotationslist(pdfapp_t *app)
 	app->errored = errored;
 }
 
-static void pdfapp_runpage(pdfapp_t *app, fz_device *dev, const fz_matrix *ctm, const fz_rect *rect, fz_cookie *cookie)
+static void pdfapp_runpage(pdfapp_t *app, fz_device *dev, const fz_matrix ctm, fz_rect scissor, fz_cookie *cookie)
 {
 	if (app->page_list)
-		fz_run_display_list(app->ctx, app->page_list, dev, ctm, rect, cookie);
+		fz_run_display_list(app->ctx, app->page_list, dev, ctm, scissor, cookie);
 	if (app->annotations_list)
-		fz_run_display_list(app->ctx, app->annotations_list, dev, ctm, rect, cookie);
+		fz_run_display_list(app->ctx, app->annotations_list, dev, ctm, scissor, cookie);
 }
 
 #define MAX_TITLE 256
@@ -813,13 +812,14 @@ static void pdfapp_updatepage(pdfapp_t *app)
 			fz_annot *annot = (fz_annot*)pannot;
 			fz_rect bounds;
 			fz_irect ibounds;
-			fz_transform_rect(fz_bound_annot(app->ctx, annot, &bounds), &ctm);
-			fz_rect_from_irect(&bounds, fz_round_rect(&ibounds, &bounds));
-			fz_clear_pixmap_rect_with_value(app->ctx, app->image, 255, &ibounds);
-			idev = fz_new_draw_device_with_bbox(app->ctx, NULL, app->image, &ibounds);
+			bounds = fz_transform_rect(fz_bound_annot(app->ctx, annot), ctm);
+			ibounds = fz_round_rect(bounds);
+			bounds = fz_rect_from_irect(ibounds);
+			fz_clear_pixmap_rect_with_value(app->ctx, app->image, 255, ibounds);
+			idev = fz_new_draw_device_with_bbox(app->ctx, fz_identity, app->image, &ibounds);
 			fz_try(app->ctx)
 			{
-				pdfapp_runpage(app, idev, &ctm, &bounds, NULL);
+				pdfapp_runpage(app, idev, ctm, bounds, NULL);
 				fz_close_device(app->ctx, idev);
 			}
 			fz_always(app->ctx)
@@ -878,14 +878,15 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 		app->hit_count = 0;
 
 		/* Extract text */
-		app->page_text = fz_new_stext_page(app->ctx, fz_bound_page(app->ctx, app->page, &mediabox));
+		mediabox = fz_bound_page(app->ctx, app->page);
+		app->page_text = fz_new_stext_page(app->ctx, mediabox);
 
 		if (app->page_list || app->annotations_list)
 		{
 			tdev = fz_new_stext_device(app->ctx, app->page_text, NULL);
 			fz_try(app->ctx)
 			{
-				pdfapp_runpage(app, tdev, &fz_identity, &fz_infinite_rect, &cookie);
+				pdfapp_runpage(app, tdev, fz_identity, fz_infinite_rect, &cookie);
 				fz_close_device(app->ctx, tdev);
 			}
 			fz_always(app->ctx)
@@ -914,9 +915,9 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 		wintitle(app, buf);
 
 		pdfapp_viewctm(&ctm, app);
-		bounds = app->page_bbox;
-		fz_round_rect(&ibounds, fz_transform_rect(&bounds, &ctm));
-		fz_rect_from_irect(&bounds, &ibounds);
+		bounds = fz_transform_rect(app->page_bbox, ctm);
+		ibounds = fz_round_rect(bounds);
+		bounds = fz_rect_from_irect(ibounds);
 
 		/* Draw */
 		fz_drop_pixmap(app->ctx, app->image);
@@ -931,12 +932,12 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 
 		fz_try(app->ctx)
 		{
-			app->image = fz_new_pixmap_with_bbox(app->ctx, colorspace, &ibounds, NULL, 1);
+			app->image = fz_new_pixmap_with_bbox(app->ctx, colorspace, ibounds, NULL, 1);
 			fz_clear_pixmap_with_value(app->ctx, app->image, 255);
 			if (app->page_list || app->annotations_list)
 			{
-				idev = fz_new_draw_device(app->ctx, NULL, app->image);
-				pdfapp_runpage(app, idev, &ctm, &bounds, &cookie);
+				idev = fz_new_draw_device(app->ctx, fz_identity, app->image);
+				pdfapp_runpage(app, idev, ctm, bounds, &cookie);
 				fz_close_device(app->ctx, idev);
 			}
 			if (app->invert)
@@ -958,7 +959,7 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 			colorspace = fz_device_gray(app->ctx);
 		else
 			colorspace = app->colorspace;
-		app->image = fz_new_pixmap_with_bbox(app->ctx, colorspace, &ibounds, NULL, 1);
+		app->image = fz_new_pixmap_with_bbox(app->ctx, colorspace, ibounds, NULL, 1);
 		app->duration = 0;
 		fz_page_presentation(app->ctx, app->page, &app->transition, &app->duration);
 		if (app->duration == 0)
@@ -1050,8 +1051,9 @@ void pdfapp_inverthit(pdfapp_t *app)
 
 	for (i = 0; i < app->hit_count; i++)
 	{
-		bbox = app->hit_bbox[i];
-		pdfapp_invert(app, fz_transform_rect(&bbox, &ctm));
+		bbox = fz_rect_from_quad(app->hit_bbox[i]);
+		bbox = fz_transform_rect(bbox, ctm);
+		pdfapp_invert(app, bbox);
 	}
 }
 
@@ -1624,14 +1626,14 @@ void pdfapp_onmouse(pdfapp_t *app, int x, int y, int btn, int modifiers, int sta
 	int processed = 0;
 
 	if (app->image)
-		fz_pixmap_bbox(app->ctx, app->image, &irect);
+		irect = fz_pixmap_bbox(app->ctx, app->image);
 	p.x = x - app->panx + irect.x0;
 	p.y = y - app->pany + irect.y0;
 
 	pdfapp_viewctm(&ctm, app);
-	fz_invert_matrix(&ctm, &ctm);
+	ctm = fz_invert_matrix(ctm);
 
-	fz_transform_point(&p, &ctm);
+	p = fz_transform_point(p, ctm);
 
 	if (btn == 1 && (state == 1 || state == -1))
 	{
@@ -1706,12 +1708,7 @@ void pdfapp_onmouse(pdfapp_t *app, int x, int y, int btn, int modifiers, int sta
 						}
 						fz_always(ctx)
 						{
-							int i;
-							for (i=0; i < nopts; ++i)
-								fz_free(ctx, opts[i]);
 							fz_free(ctx, opts);
-							for (i=0; i < nvals; ++i)
-								fz_free(ctx, vals[i]);
 							fz_free(ctx, vals);
 						}
 						fz_catch(ctx)
@@ -1722,23 +1719,65 @@ void pdfapp_onmouse(pdfapp_t *app, int x, int y, int btn, int modifiers, int sta
 					break;
 
 				case PDF_WIDGET_TYPE_SIGNATURE:
+#ifdef HAVE_LIBCRYPTO
 					if (state == -1)
 					{
 						char ebuf[256];
 
-						ebuf[0] = 0;
-						if (pdf_check_signature(ctx, idoc, widget, ebuf, sizeof(ebuf)))
+						if (pdf_dict_get(ctx, ((pdf_annot *)widget)->obj, PDF_NAME(V)))
 						{
-							winwarn(app, "Signature is valid");
+							/* Signature is signed. Check the signature */
+							ebuf[0] = 0;
+							if (pdf_check_signature(ctx, idoc, widget, ebuf, sizeof(ebuf)))
+							{
+								winwarn(app, "Signature is valid");
+							}
+							else
+							{
+								if (ebuf[0] == 0)
+									winwarn(app, "Signature check failed for unknown reason");
+								else
+									winwarn(app, ebuf);
+							}
 						}
 						else
 						{
-							if (ebuf[0] == 0)
-								winwarn(app, "Signature check failed for unknown reason");
-							else
-								winwarn(app, ebuf);
+							/* Signature is unsigned. Offer to sign it */
+							if (winquery(app, "Select certificate and sign?") == QUERY_YES)
+							{
+								char certpath[PATH_MAX];
+								if (wingetcertpath(certpath, PATH_MAX))
+								{
+									int res;
+									char *pw = winpassword(app, "certificate");
+									pdf_pkcs7_signer *signer = pkcs7_openssl_read_pfx(ctx, certpath, pw);
+
+									fz_var(res);
+									fz_try(ctx)
+									{
+										pdf_sign_signature(ctx, idoc, widget, signer);
+										res = 1;
+									}
+									fz_always(ctx)
+									{
+										signer->drop(signer);
+									}
+									fz_catch(ctx)
+									{
+										res = 0;
+									}
+
+									if (res)
+										pdfapp_updatepage(app);
+									else
+										winwarn(app, "Signing failed");
+								}
+							}
 						}
 					}
+#else
+					winwarn(app, "Cannot check signatures as no libcrypto!");
+#endif
 					break;
 				}
 			}
@@ -1772,8 +1811,7 @@ void pdfapp_onmouse(pdfapp_t *app, int x, int y, int btn, int modifiers, int sta
 		fz_annot *annot;
 		for (annot = fz_first_annot(app->ctx, app->page); annot; annot = fz_next_annot(app->ctx, annot))
 		{
-			fz_rect rect;
-			fz_bound_annot(app->ctx, annot, &rect);
+			fz_rect rect = fz_bound_annot(app->ctx, annot);
 			if (x >= rect.x0 && x < rect.x1)
 				if (y >= rect.y0 && y < rect.y1)
 					break;
@@ -1923,13 +1961,11 @@ void pdfapp_oncopy(pdfapp_t *app, unsigned short *ucsbuf, int ucslen)
 	fz_stext_block *block;
 	fz_stext_line *line;
 	fz_stext_char *ch;
-
-	int x0 = app->selr.x0;
-	int x1 = app->selr.x1;
-	int y0 = app->selr.y0;
-	int y1 = app->selr.y1;
+	fz_rect sel;
 
 	pdfapp_viewctm(&ctm, app);
+	ctm = fz_invert_matrix(ctm);
+	sel = fz_transform_rect(app->selr, ctm);
 
 	p = 0;
 	need_newline = 0;
@@ -1944,15 +1980,16 @@ void pdfapp_oncopy(pdfapp_t *app, unsigned short *ucsbuf, int ucslen)
 			int saw_text = 0;
 			for (ch = line->first_char; ch; ch = ch->next)
 			{
+				fz_rect bbox = fz_rect_from_quad(ch->quad);
 				int c = ch->c;
 				if (c < 32)
 					c = 0xFFFD;
-				if (ch->bbox.x1 >= x0 && ch->bbox.x0 <= x1 && ch->bbox.y1 >= y0 && ch->bbox.y0 <= y1)
+				if (bbox.x1 >= sel.x0 && bbox.x0 <= sel.x1 && bbox.y1 >= sel.y0 && bbox.y0 <= sel.y1)
 				{
 					saw_text = 1;
 					if (need_newline)
 					{
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
 						if (p < ucslen - 1)
 							ucsbuf[p++] = '\r';
 #endif

@@ -124,6 +124,9 @@ fz_recognize_document(fz_context *ctx, const char *magic)
 	return dc->handler[best_i];
 }
 
+#ifdef FZ_ENABLE_PDF
+extern fz_document_handler pdf_document_handler;
+#endif
 
 fz_document *
 fz_open_document_with_stream(fz_context *ctx, const char *magic, fz_stream *stream)
@@ -135,7 +138,11 @@ fz_open_document_with_stream(fz_context *ctx, const char *magic, fz_stream *stre
 
 	handler = fz_recognize_document(ctx, magic);
 	if (!handler)
+#ifdef FZ_ENABLE_PDF
+		handler = &pdf_document_handler;
+#else
 		fz_throw(ctx, FZ_ERROR_GENERIC, "cannot find document handler for file type: %s", magic);
+#endif
 
 	return handler->open_with_stream(ctx, stream);
 }
@@ -152,7 +159,11 @@ fz_open_document(fz_context *ctx, const char *filename)
 
 	handler = fz_recognize_document(ctx, filename);
 	if (!handler)
+#ifdef FZ_ENABLE_PDF
+		handler = &pdf_document_handler;
+#else
 		fz_throw(ctx, FZ_ERROR_GENERIC, "cannot find document handler for file: %s", filename);
+#endif
 
 	if (handler->open)
 		return handler->open(ctx, filename);
@@ -317,25 +328,23 @@ fz_load_page(fz_context *ctx, fz_document *doc, int number)
 fz_link *
 fz_load_links(fz_context *ctx, fz_page *page)
 {
-	if (page && page->load_links && page)
+	if (page && page->load_links)
 		return page->load_links(ctx, page);
 	return NULL;
 }
 
-fz_rect *
-fz_bound_page(fz_context *ctx, fz_page *page, fz_rect *r)
+fz_rect
+fz_bound_page(fz_context *ctx, fz_page *page)
 {
-	if (page && page->bound_page && page && r)
-		return page->bound_page(ctx, page, r);
-	if (r)
-		*r = fz_empty_rect;
-	return r;
+	if (page && page->bound_page)
+		return page->bound_page(ctx, page);
+	return fz_empty_rect;
 }
 
 fz_annot *
 fz_first_annot(fz_context *ctx, fz_page *page)
 {
-	if (page && page->first_annot && page)
+	if (page && page->first_annot)
 		return page->first_annot(ctx, page);
 	return NULL;
 }
@@ -348,18 +357,16 @@ fz_next_annot(fz_context *ctx, fz_annot *annot)
 	return NULL;
 }
 
-fz_rect *
-fz_bound_annot(fz_context *ctx, fz_annot *annot, fz_rect *rect)
+fz_rect
+fz_bound_annot(fz_context *ctx, fz_annot *annot)
 {
-	if (annot && annot->bound_annot && rect)
-		return annot->bound_annot(ctx, annot, rect);
-	if (rect)
-		*rect = fz_empty_rect;
-	return rect;
+	if (annot && annot->bound_annot)
+		return annot->bound_annot(ctx, annot);
+	return fz_empty_rect;
 }
 
 void
-fz_run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, const fz_matrix *transform, fz_cookie *cookie)
+fz_run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix transform, fz_cookie *cookie)
 {
 	if (page && page->run_page_contents && page)
 	{
@@ -376,7 +383,7 @@ fz_run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, const fz_ma
 }
 
 void
-fz_run_annot(fz_context *ctx, fz_annot *annot, fz_device *dev, const fz_matrix *transform, fz_cookie *cookie)
+fz_run_annot(fz_context *ctx, fz_annot *annot, fz_device *dev, fz_matrix transform, fz_cookie *cookie)
 {
 	if (annot && annot->run_annot)
 	{
@@ -393,7 +400,7 @@ fz_run_annot(fz_context *ctx, fz_annot *annot, fz_device *dev, const fz_matrix *
 }
 
 void
-fz_run_page(fz_context *ctx, fz_page *page, fz_device *dev, const fz_matrix *transform, fz_cookie *cookie)
+fz_run_page(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix transform, fz_cookie *cookie)
 {
 	fz_annot *annot;
 

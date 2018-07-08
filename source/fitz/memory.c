@@ -198,9 +198,12 @@ fz_resize_array_no_throw(fz_context *ctx, void *p, size_t count, size_t size)
 void
 fz_free(fz_context *ctx, void *p)
 {
-	fz_lock(ctx, FZ_LOCK_ALLOC);
-	ctx->alloc->free(ctx->alloc->user, p);
-	fz_unlock(ctx, FZ_LOCK_ALLOC);
+	if (p)
+	{
+		fz_lock(ctx, FZ_LOCK_ALLOC);
+		ctx->alloc->free(ctx->alloc->user, p);
+		fz_unlock(ctx, FZ_LOCK_ALLOC);
+	}
 }
 
 char *
@@ -209,16 +212,6 @@ fz_strdup(fz_context *ctx, const char *s)
 	size_t len = strlen(s) + 1;
 	char *ns = fz_malloc(ctx, len);
 	memcpy(ns, s, len);
-	return ns;
-}
-
-char *
-fz_strdup_no_throw(fz_context *ctx, const char *s)
-{
-	size_t len = strlen(s) + 1;
-	char *ns = fz_malloc_no_throw(ctx, len);
-	if (ns)
-		memcpy(ns, s, len);
 	return ns;
 }
 
@@ -284,7 +277,7 @@ int fz_lock_taken[FZ_LOCK_DEBUG_CONTEXT_MAX][FZ_LOCK_MAX] = { { 0 } };
  * when threads are involved. */
 static int ms_clock(void)
 {
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
 	return (int)GetTickCount();
 #else
 	struct timeval tp;

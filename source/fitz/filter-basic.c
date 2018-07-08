@@ -2,23 +2,18 @@
 
 #include <string.h>
 
-/* Pretend we have a filter that just copies data forever */
-
-fz_stream *
-fz_open_copy(fz_context *ctx, fz_stream *chain)
-{
-	return fz_keep_stream(ctx, chain);
-}
-
 /* Null filter copies a specified amount of data */
 
 struct null_filter
 {
 	fz_stream *chain;
 	fz_range *ranges;
+	int look_for_endstream;
 	int nranges;
 	int next_range;
 	size_t remain;
+	unsigned int extras;
+	unsigned int size;
 	int64_t offset;
 	unsigned char buffer[4096];
 };
@@ -27,7 +22,9 @@ static int
 next_null(fz_context *ctx, fz_stream *stm, size_t max)
 {
 	struct null_filter *state = stm->state;
-	size_t n;
+	size_t n, i, nbytes_in_buffer;
+	const char *rp;
+	unsigned int size;
 
 	while (state->remain == 0 && state->next_range < state->nranges)
 	{
@@ -37,7 +34,7 @@ next_null(fz_context *ctx, fz_stream *stm, size_t max)
 	}
 
 	if (state->remain == 0)
-		return EOF;
+		goto maybe_ended;
 	fz_seek(ctx, state->chain, state->offset, 0);
 	n = fz_available(ctx, state->chain, max);
 	if (n > state->remain)
@@ -48,11 +45,87 @@ next_null(fz_context *ctx, fz_stream *stm, size_t max)
 	stm->rp = state->buffer;
 	stm->wp = stm->rp + n;
 	if (n == 0)
-		return EOF;
+		goto maybe_ended;
 	state->chain->rp += n;
 	state->remain -= n;
 	state->offset += (int64_t)n;
 	stm->pos += (int64_t)n;
+	return *stm->rp++;
+
+maybe_ended:
+	if (state->look_for_endstream == 0)
+		return EOF;
+
+	/* We should distrust the stream length, and check for end
+	 * marker before terminating the stream - this is to cope
+	 * with files with duff "Length" values. */
+	fz_seek(ctx, state->chain, state->offset, 0);
+
+	/* Move any data left over in our buffer down to the start.
+	 * Ordinarily, there won't be any, but this allows for the
+	 * case where we were part way through matching a stream end
+	 * marker when the buffer filled before. */
+	nbytes_in_buffer = state->extras;
+	if (nbytes_in_buffer)
+		memmove(state->buffer, stm->rp, nbytes_in_buffer);
+	stm->rp = state->buffer;
+	stm->wp = stm->rp + nbytes_in_buffer;
+
+	/* In most sane files, we'll get "\nendstream" instantly. We
+	 * should only need (say) 32 bytes to be sure. For crap files
+	 * where we overread regularly, don't harm performance by
+	 * working in small chunks. */
+	state->size *= 2;
+	if (state->size > sizeof(state->buffer))
+		state->size = sizeof(state->buffer);
+#define END_CHECK_SIZE 32
+	size = state->size;
+	while (nbytes_in_buffer < size)
+	{
+		n = fz_available(ctx, state->chain, size - nbytes_in_buffer);
+		if (n == 0)
+			break;
+		if (n > size - nbytes_in_buffer)
+			n = size - nbytes_in_buffer;
+		memcpy(stm->wp, state->chain->rp, n);
+		stm->wp += n;
+		state->chain->rp += n;
+		nbytes_in_buffer += n;
+	}
+
+	*stm->wp = 0; /* Be friendly to strcmp */
+	rp = (char *)state->buffer;
+	n = 0;
+	/* If we don't have at least 11 bytes in the buffer, then we don't have
+	 * enough bytes for the worst case terminator. Also, we're dangerously
+	 * close to the end of the file. Don't risk overrunning the buffer. */
+	if (nbytes_in_buffer >= 11)
+		for (i = 0; i < nbytes_in_buffer - 11; )
+		{
+			n = i;
+			if (rp[i] == '\r')
+				i++;
+			if (rp[i] == '\n')
+				i++;
+			if (rp[i++] != 'e')
+				continue;
+			if (rp[i++] != 'n')
+				continue;
+			if (rp[i++] != 'd')
+				continue;
+			if (memcmp(&rp[i], "stream", 6) == 0 || (memcmp(&rp[i], "obj", 3) == 0))
+				break;
+			i++;
+		}
+
+	/* We have at least n bytes before we hit an end marker */
+	state->offset += (int64_t)nbytes_in_buffer - state->extras;
+	state->extras = nbytes_in_buffer - n;
+	stm->wp = stm->rp + n;
+	stm->pos += n;
+
+	if (n == 0)
+		return EOF;
 	return *stm->rp++;
 }
 
@@ -60,38 +133,55 @@ static void
 close_null(fz_context *ctx, void *state_)
 {
 	struct null_filter *state = (struct null_filter *)state_;
-	fz_stream *chain = state->chain;
+	fz_drop_stream(ctx, state->chain);
 	fz_free(ctx, state->ranges);
 	fz_free(ctx, state);
-	fz_drop_stream(ctx, chain);
 }
 
-fz_stream *
-fz_open_null_n(fz_context *ctx, fz_stream *chain, fz_range *ranges, int nranges)
+static fz_stream *
+fz_open_null_n_terminator(fz_context *ctx, fz_stream *chain, fz_range *ranges, int nranges, int terminator)
 {
 	struct null_filter *state = NULL;
 
-	fz_var(state);
+	state = fz_malloc_struct(ctx, struct null_filter);
 	fz_try(ctx)
 	{
-		state = fz_malloc_struct(ctx, struct null_filter);
-		state->ranges = fz_calloc(ctx, nranges, sizeof(*ranges));
-		memcpy(state->ranges, ranges, nranges * sizeof(*ranges));
-		state->nranges = nranges;
-		state->next_range = 1;
-		state->chain = chain;
-		state->remain = nranges ? ranges[0].len : 0;
-		state->offset = nranges ? ranges[0].offset : 0;
+		if (nranges > 0)
+		{
+			state->ranges = fz_calloc(ctx, nranges, sizeof(*ranges));
+			memcpy(state->ranges, ranges, nranges * sizeof(*ranges));
+			state->look_for_endstream = terminator;
+			state->nranges = nranges;
+			state->next_range = 1;
+			state->remain = ranges[0].len;
+			state->offset = ranges[0].offset;
+			state->extras = 0;
+			state->size = END_CHECK_SIZE>>1;
+		}
+		else
+		{
+			state->ranges = NULL;
+			state->nranges = 0;
+			state->next_range = 1;
+			state->remain = 0;
+			state->offset = 0;
+		}
+		state->chain = fz_keep_stream(ctx, chain);
 	}
 	fz_catch(ctx)
 	{
 		fz_free(ctx, state->ranges);
 		fz_free(ctx, state);
-		fz_drop_stream(ctx, chain);
 		fz_rethrow(ctx);
 	}
 
 	return fz_new_stream(ctx, state, next_null, close_null);
+}
+
+fz_stream *
+fz_open_null_n(fz_context *ctx, fz_stream *chain, fz_range *ranges, int nranges)
+{
+	return fz_open_null_n_terminator(ctx, chain, ranges, nranges, 0);
 }
 
 fz_stream *
@@ -104,9 +194,21 @@ fz_open_null(fz_context *ctx, fz_stream *chain, int len, int64_t offset)
 
 	range.offset = offset;
 	range.len = len;
-	return fz_open_null_n(ctx, chain, &range, 1);
+	return fz_open_null_n_terminator(ctx, chain, &range, 1, 0);
 }
 
+fz_stream *
+fz_open_pdf_stream(fz_context *ctx, fz_stream *chain, int len, int64_t offset)
+{
+	fz_range range;
+
+	if (len < 0)
+		len = 0;
+
+	range.offset = offset;
+	range.len = len;
+	return fz_open_null_n_terminator(ctx, chain, &range, 1, 1);
+}
 
 /* Concat filter concatenates several streams into one */
 
@@ -303,28 +405,16 @@ static void
 close_ahxd(fz_context *ctx, void *state_)
 {
 	fz_ahxd *state = (fz_ahxd *)state_;
-	fz_stream *chain = state->chain;
+	fz_drop_stream(ctx, state->chain);
 	fz_free(ctx, state);
-	fz_drop_stream(ctx, chain);
 }
 
 fz_stream *
 fz_open_ahxd(fz_context *ctx, fz_stream *chain)
 {
-	fz_ahxd *state = NULL;
-
-	fz_try(ctx)
-	{
-		state = fz_malloc_struct(ctx, fz_ahxd);
-		state->chain = chain;
-		state->eod = 0;
-	}
-	fz_catch(ctx)
-	{
-		fz_drop_stream(ctx, chain);
-		fz_rethrow(ctx);
-	}
-
+	fz_ahxd *state = fz_malloc_struct(ctx, fz_ahxd);
+	state->chain = fz_keep_stream(ctx, chain);
+	state->eod = 0;
 	return fz_new_stream(ctx, state, next_ahxd, close_ahxd);
 }
 
@@ -446,29 +536,16 @@ static void
 close_a85d(fz_context *ctx, void *state_)
 {
 	fz_a85d *state = (fz_a85d *)state_;
-	fz_stream *chain = state->chain;
-
+	fz_drop_stream(ctx, state->chain);
 	fz_free(ctx, state);
-	fz_drop_stream(ctx, chain);
 }
 
 fz_stream *
 fz_open_a85d(fz_context *ctx, fz_stream *chain)
 {
-	fz_a85d *state = NULL;
-
-	fz_try(ctx)
-	{
-		state = fz_malloc_struct(ctx, fz_a85d);
-		state->chain = chain;
-		state->eod = 0;
-	}
-	fz_catch(ctx)
-	{
-		fz_drop_stream(ctx, chain);
-		fz_rethrow(ctx);
-	}
-
+	fz_a85d *state = fz_malloc_struct(ctx, fz_a85d);
+	state->chain = fz_keep_stream(ctx, chain);
+	state->eod = 0;
 	return fz_new_stream(ctx, state, next_a85d, close_a85d);
 }
 
@@ -557,31 +634,18 @@ static void
 close_rld(fz_context *ctx, void *state_)
 {
 	fz_rld *state = (fz_rld *)state_;
-	fz_stream *chain = state->chain;
-
+	fz_drop_stream(ctx, state->chain);
 	fz_free(ctx, state);
-	fz_drop_stream(ctx, chain);
 }
 
 fz_stream *
 fz_open_rld(fz_context *ctx, fz_stream *chain)
 {
-	fz_rld *state = NULL;
-
-	fz_try(ctx)
-	{
-		state = fz_malloc_struct(ctx, fz_rld);
-		state->chain = chain;
-		state->run = 0;
-		state->n = 0;
-		state->c = 0;
-	}
-	fz_catch(ctx)
-	{
-		fz_drop_stream(ctx, chain);
-		fz_rethrow(ctx);
-	}
-
+	fz_rld *state = fz_malloc_struct(ctx, fz_rld);
+	state->chain = fz_keep_stream(ctx, chain);
+	state->run = 0;
+	state->n = 0;
+	state->c = 0;
 	return fz_new_stream(ctx, state, next_rld, close_rld);
 }
 
@@ -620,29 +684,16 @@ static void
 close_arc4(fz_context *ctx, void *state_)
 {
 	fz_arc4c *state = (fz_arc4c *)state_;
-	fz_stream *chain = state->chain;
-
+	fz_drop_stream(ctx, state->chain);
 	fz_free(ctx, state);
-	fz_drop_stream(ctx, chain);
 }
 
 fz_stream *
 fz_open_arc4(fz_context *ctx, fz_stream *chain, unsigned char *key, unsigned keylen)
 {
-	fz_arc4c *state = NULL;
-
-	fz_try(ctx)
-	{
-		state = fz_malloc_struct(ctx, fz_arc4c);
-		state->chain = chain;
-		fz_arc4_init(&state->arc4, key, keylen);
-	}
-	fz_catch(ctx)
-	{
-		fz_drop_stream(ctx, chain);
-		fz_rethrow(ctx);
-	}
-
+	fz_arc4c *state = fz_malloc_struct(ctx, fz_arc4c);
+	state->chain = fz_keep_stream(ctx, chain);
+	fz_arc4_init(&state->arc4, key, keylen);
 	return fz_new_stream(ctx, state, next_arc4, close_arc4);
 }
 
@@ -722,35 +773,22 @@ static void
 close_aesd(fz_context *ctx, void *state_)
 {
 	fz_aesd *state = (fz_aesd *)state_;
-	fz_stream *chain = state->chain;
-
+	fz_drop_stream(ctx, state->chain);
 	fz_free(ctx, state);
-	fz_drop_stream(ctx, chain);
 }
 
 fz_stream *
 fz_open_aesd(fz_context *ctx, fz_stream *chain, unsigned char *key, unsigned keylen)
 {
-	fz_aesd *state = NULL;
-
-	fz_var(state);
-
-	fz_try(ctx)
-	{
-		state = fz_malloc_struct(ctx, fz_aesd);
-		state->chain = chain;
-		if (fz_aes_setkey_dec(&state->aes, key, keylen * 8))
-			fz_throw(ctx, FZ_ERROR_GENERIC, "AES key init failed (keylen=%d)", keylen * 8);
-		state->ivcount = 0;
-		state->rp = state->bp;
-		state->wp = state->bp;
-	}
-	fz_catch(ctx)
+	fz_aesd *state = fz_malloc_struct(ctx, fz_aesd);
+	if (fz_aes_setkey_dec(&state->aes, key, keylen * 8))
 	{
 		fz_free(ctx, state);
-		fz_drop_stream(ctx, chain);
-		fz_rethrow(ctx);
+		fz_throw(ctx, FZ_ERROR_GENERIC, "AES key init failed (keylen=%d)", keylen * 8);
 	}
-
+	state->ivcount = 0;
+	state->rp = state->bp;
+	state->wp = state->bp;
+	state->chain = fz_keep_stream(ctx, chain);
 	return fz_new_stream(ctx, state, next_aesd, close_aesd);
 }

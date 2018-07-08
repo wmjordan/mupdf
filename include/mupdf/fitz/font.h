@@ -72,7 +72,6 @@ typedef struct
 
 	unsigned int fake_bold : 1; /* synthesize bold */
 	unsigned int fake_italic : 1; /* synthesize italic */
-	unsigned int force_hinting : 1; /* force hinting for DynaLab fonts */
 	unsigned int has_opentype : 1; /* has opentype shaping tables */
 	unsigned int invalid_bbox : 1;
 } fz_font_flags_t;
@@ -152,7 +151,7 @@ int fz_font_is_monospaced(fz_context *ctx, fz_font *font);
 	Returns a pointer to the font bbox (or NULL if the
 	font is NULL).
 */
-fz_rect *fz_font_bbox(fz_context *ctx, fz_font *font);
+fz_rect fz_font_bbox(fz_context *ctx, fz_font *font);
 
 /*
 	fz_load_system_font_fn: Type for user supplied system font loading hook.
@@ -298,7 +297,7 @@ const unsigned char *fz_lookup_icc(fz_context *ctx, const char *name, size_t *le
 
 	Returns a pointer to the font file data, or NULL if not present.
 */
-const unsigned char *fz_lookup_cjk_font(fz_context *ctx, int registry, int serif, int wmode, int *len, int *index);
+const unsigned char *fz_lookup_cjk_font(fz_context *ctx, int registry, int serif, int *len, int *index);
 
 /*
 	fz_lookup_noto_font: Search the builtin noto fonts for a match.
@@ -316,10 +315,10 @@ const unsigned char *fz_lookup_cjk_font(fz_context *ctx, int registry, int serif
 
 	Returns a pointer to the font file data, or NULL if not present.
 */
-const unsigned char *fz_lookup_noto_font(fz_context *ctx, int script, int lang, int serif, int *len);
+const unsigned char *fz_lookup_noto_font(fz_context *ctx, int script, int lang, int serif, int *len, int *subfont);
 
 /*
-	fz_lookup_noto_symbol_font: Search the builtin noto fonts
+	fz_lookup_noto_symbol[12]_font: Search the builtin noto fonts
 	for a symbol font. Whether a font is present or not will
 	depend on the configuration in which MuPDF is built.
 
@@ -328,7 +327,8 @@ const unsigned char *fz_lookup_noto_font(fz_context *ctx, int script, int lang, 
 
 	Returns a pointer to the font file data, or NULL if not present.
 */
-const unsigned char *fz_lookup_noto_symbol_font(fz_context *ctx, int *len);
+const unsigned char *fz_lookup_noto_symbol1_font(fz_context *ctx, int *len);
+const unsigned char *fz_lookup_noto_symbol2_font(fz_context *ctx, int *len);
 
 /*
 	fz_lookup_noto_emoji_font: Search the builtin noto fonts
@@ -363,24 +363,6 @@ const unsigned char *fz_lookup_noto_emoji_font(fz_context *ctx, int *len);
 fz_font *fz_load_fallback_font(fz_context *ctx, int script, int language, int serif, int bold, int italic);
 
 /*
-	fz_load_fallback_symbol_font: Try to load a fallback
-	symbol font. Whether a font is present or not will
-	depend on the configuration in which MuPDF is built.
-
-	Returns a new font handle, or NULL if not available.
-*/
-fz_font *fz_load_fallback_symbol_font(fz_context *ctx);
-
-/*
-	fz_load_fallback_emoji_font: Try to load a fallback
-	emoji font. Whether a font is present or not will
-	depend on the configuration in which MuPDF is built.
-
-	Returns a new font handle, or NULL if not available.
-*/
-fz_font *fz_load_fallback_emoji_font(fz_context *ctx);
-
-/*
 	fz_new_type3_font: Create a new (empty) type3 font.
 
 	name: Name of font (or NULL).
@@ -390,7 +372,7 @@ fz_font *fz_load_fallback_emoji_font(fz_context *ctx);
 	Returns a new font handle, or throws exception on
 	allocation failure.
 */
-fz_font *fz_new_type3_font(fz_context *ctx, const char *name, const fz_matrix *matrix);
+fz_font *fz_new_type3_font(fz_context *ctx, const char *name, fz_matrix matrix);
 
 /*
 	fz_new_font_from_memory: Create a new font from a font
@@ -442,6 +424,11 @@ fz_font *fz_new_font_from_buffer(fz_context *ctx, const char *name, fz_buffer *b
 */
 fz_font *fz_new_font_from_file(fz_context *ctx, const char *name, const char *path, int index, int use_glyph_bbox);
 
+/* Create a new font from one of the built-in fonts. */
+fz_font *fz_new_base14_font(fz_context *ctx, const char *name);
+fz_font *fz_new_cjk_font(fz_context *ctx, int registry, int serif);
+fz_font *fz_new_builtin_font(fz_context *ctx, const char *name, int is_bold, int is_italic);
+
 /*
 	Add a reference to an existing fz_font.
 
@@ -481,7 +468,7 @@ void fz_set_font_bbox(fz_context *ctx, fz_font *font, float xmin, float ymin, fl
 
 	Returns r, after filling it in with the bounds of the given glyph.
 */
-fz_rect *fz_bound_glyph(fz_context *ctx, fz_font *font, int gid, const fz_matrix *trm, fz_rect *r);
+fz_rect fz_bound_glyph(fz_context *ctx, fz_font *font, int gid, fz_matrix trm);
 
 /*
 	fz_glyph_cacheable: Determine if a given glyph in a font
@@ -509,7 +496,7 @@ int fz_glyph_cacheable(fz_context *ctx, fz_font *font, int gid);
 
 	dev: The device to render onto.
 */
-void fz_run_t3_glyph(fz_context *ctx, fz_font *font, int gid, const fz_matrix *trm, struct fz_device_s *dev);
+void fz_run_t3_glyph(fz_context *ctx, fz_font *font, int gid, fz_matrix trm, struct fz_device_s *dev);
 
 /*
 	fz_decouple_type3_font: Internal function to remove the
@@ -605,6 +592,8 @@ void fz_get_glyph_name(fz_context *ctx, fz_font *font, int glyph, char *buf, int
 */
 float fz_font_ascender(fz_context *ctx, fz_font *font);
 float fz_font_descender(fz_context *ctx, fz_font *font);
+
+void fz_font_digest(fz_context *ctx, fz_font *font, unsigned char digest[16]);
 
 /*
 	Internal functions for our Harfbuzz integration
