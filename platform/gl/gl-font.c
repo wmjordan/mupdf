@@ -29,6 +29,7 @@
 struct key
 {
 	fz_font *font;
+	float size;
 	short gid;
 	unsigned char subx;
 	unsigned char suby;
@@ -56,7 +57,6 @@ static int g_cache_row_x = 0;
 static int g_cache_row_h = 0;
 
 static fz_font *g_font = NULL;
-static float g_font_size = 16;
 
 static void clear_font_cache(void)
 {
@@ -76,7 +76,7 @@ static void clear_font_cache(void)
 	g_cache_row_h = 0;
 }
 
-void ui_init_fonts(float pixelsize)
+void ui_init_fonts(void)
 {
 	const unsigned char *data;
 	int size;
@@ -95,7 +95,6 @@ void ui_init_fonts(float pixelsize)
 	if (!data)
 		data = fz_lookup_builtin_font(ctx, "Times", 0, 0, &size);
 	g_font = fz_new_font_from_memory(ctx, NULL, data, size, 0, 0);
-	g_font_size = pixelsize;
 }
 
 void ui_finish_fonts(void)
@@ -127,7 +126,7 @@ static unsigned int lookup_table(struct key *key)
 	}
 }
 
-static struct glyph *lookup_glyph(fz_font *font, int gid, float *xp, float *yp)
+static struct glyph *lookup_glyph(fz_font *font, float size, int gid, float *xp, float *yp)
 {
 	fz_matrix trm, subpix_trm;
 	unsigned char subx, suby;
@@ -137,7 +136,7 @@ static struct glyph *lookup_glyph(fz_font *font, int gid, float *xp, float *yp)
 	int w, h;
 
 	/* match fitz's glyph cache quantization */
-	trm = fz_scale(g_font_size, -g_font_size);
+	trm = fz_scale(size, -size);
 	trm.e = *xp;
 	trm.f = *yp;
 	fz_subpixel_adjust(ctx, &trm, &subpix_trm, &subx, &suby);
@@ -150,6 +149,7 @@ static struct glyph *lookup_glyph(fz_font *font, int gid, float *xp, float *yp)
 
 	memset(&key, 0, sizeof key);
 	key.font = font;
+	key.size = size;
 	key.gid = gid;
 	key.subx = subx;
 	key.suby = suby;
@@ -225,12 +225,12 @@ static struct glyph *lookup_glyph(fz_font *font, int gid, float *xp, float *yp)
 	return &g_table[pos].glyph;
 }
 
-static float ui_draw_glyph(fz_font *font, int gid, float x, float y)
+static float ui_draw_glyph(fz_font *font, float size, int gid, float x, float y)
 {
 	struct glyph *glyph;
 	float s0, t0, s1, t1, xc, yc;
 
-	glyph = lookup_glyph(font, gid, &x, &y);
+	glyph = lookup_glyph(font, size, gid, &x, &y);
 	if (!glyph)
 		return 0;
 
@@ -246,21 +246,21 @@ static float ui_draw_glyph(fz_font *font, int gid, float x, float y)
 	glTexCoord2f(s1, t1); glVertex2f(xc + glyph->w, yc);
 	glTexCoord2f(s0, t1); glVertex2f(xc, yc);
 
-	return fz_advance_glyph(ctx, font, gid, 0) * g_font_size;
+	return fz_advance_glyph(ctx, font, gid, 0) * size;
 }
 
 float ui_measure_character(int ucs)
 {
 	fz_font *font;
 	int gid = fz_encode_character_with_fallback(ctx, g_font, ucs, 0, 0, &font);
-	return fz_advance_glyph(ctx, font, gid, 0) * g_font_size;
+	return fz_advance_glyph(ctx, font, gid, 0) * ui.fontsize;
 }
 
 float ui_draw_character(int ucs, float x, float y)
 {
 	fz_font *font;
 	int gid = fz_encode_character_with_fallback(ctx, g_font, ucs, 0, 0, &font);
-	return ui_draw_glyph(font, gid, x, y);
+	return ui_draw_glyph(font, ui.fontsize, gid, x, y);
 }
 
 void ui_begin_text(void)
@@ -330,39 +330,69 @@ float ui_measure_string_part(const char *s, const char *e)
 
 int ui_break_lines(char *a, struct line *lines, int maxlines, int width, int *maxwidth)
 {
-	char *next, *b = a;
+	char *next, *space = NULL, *b = a;
 	int c, n = 0;
-	float x = 0, w = 0;
+	float space_x, x = 0, w = 0;
+
 	if (maxwidth)
 		*maxwidth = 0;
+
 	while (*b)
 	{
 		next = b + fz_chartorune(&c, b);
-		if (c == '\n' || c == '\r')
+		if (c == '\r' || c == '\n')
 		{
-			if (n + 1 < maxlines)
+			if (lines && n < maxlines)
 			{
-				if (maxwidth && x > *maxwidth)
-					*maxwidth = x;
 				lines[n].a = a;
 				lines[n].b = b;
-				++n;
-				a = next;
-				x = 0;
 			}
+			++n;
+			if (maxwidth && *maxwidth < x)
+				*maxwidth = x;
+			a = next;
+			x = 0;
+			space = NULL;
 		}
 		else
 		{
-			w = ui_measure_character(c);
-			if (x + w > width && (n + 1 < maxlines))
+			if (c == ' ')
 			{
-				if (maxwidth && x > *maxwidth)
-					*maxwidth = x;
-				lines[n].a = a;
-				lines[n].b = b;
-				++n;
-				a = b;
-				x = w;
+				space = b;
+				space_x = x;
+			}
+
+			w = ui_measure_character(c);
+			if (x + w > width)
+			{
+				if (space)
+				{
+					if (lines && n < maxlines)
+					{
+						lines[n].a = a;
+						lines[n].b = space;
+					}
+					++n;
+					if (maxwidth && *maxwidth < space_x)
+						*maxwidth = space_x;
+					a = next = space + 1;
+					x = 0;
+					space = NULL;
+				}
+				else
+				{
+					if (lines && n < maxlines)
+					{
+						lines[n].a = a;
+						lines[n].b = b;
+					}
+					++n;
+					if (maxwidth && *maxwidth < x)
+						*maxwidth = x;
+					a = b;
+					x = w;
+					space = NULL;
+				}
 			}
 			else
 			{
@@ -371,11 +401,16 @@ int ui_break_lines(char *a, struct line *lines, int maxlines, int width, int *ma
 		}
 		b = next;
 	}
-	if (maxwidth && x > *maxwidth)
+
+	if (lines && n < maxlines)
+	{
+		lines[n].a = a;
+		lines[n].b = b;
+	}
+	++n;
+	if (maxwidth && *maxwidth < x)
 		*maxwidth = x;
-	lines[n].a = a;
-	lines[n].b = b;
-	return n + 1;
+	return n < maxlines ? n : maxlines;
 }
 
 void ui_draw_lines(float x, float y, struct line *lines, int n)

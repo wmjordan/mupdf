@@ -2357,6 +2357,8 @@ static void ffi_new_Font(js_State *J)
 
 	fz_try(ctx) {
 		data = fz_lookup_base14_font(ctx, name, &size);
+		if (!data)
+			data = fz_lookup_cjk_font_by_language(ctx, name, &size, &index);
 		if (data)
 			font = fz_new_font_from_memory(ctx, name, data, size, index, 0);
 		else
@@ -3285,9 +3287,12 @@ static void ffi_PDFDocument_addSimpleFont(js_State *J)
 	pdf_obj *ind = NULL;
 	int enc = PDF_SIMPLE_ENCODING_LATIN;
 
-	if (!strcmp(encname, "Latin")) enc = PDF_SIMPLE_ENCODING_LATIN;
-	else if (!strcmp(encname, "Greek")) enc = PDF_SIMPLE_ENCODING_GREEK;
-	else if (!strcmp(encname, "Cyrillic")) enc = PDF_SIMPLE_ENCODING_CYRILLIC;
+	if (!strcmp(encname, "Latin") || !strcmp(encname, "Latn"))
+		enc = PDF_SIMPLE_ENCODING_LATIN;
+	else if (!strcmp(encname, "Greek") || !strcmp(encname, "Grek"))
+		enc = PDF_SIMPLE_ENCODING_GREEK;
+	else if (!strcmp(encname, "Cyrillic") || !strcmp(encname, "Cyrl"))
+		enc = PDF_SIMPLE_ENCODING_CYRILLIC;
 
 	fz_try(ctx)
 		ind = pdf_add_simple_font(ctx, pdf, font, enc);
@@ -3302,18 +3307,15 @@ static void ffi_PDFDocument_addCJKFont(js_State *J)
 	fz_context *ctx = js_getcontext(J);
 	pdf_document *pdf = js_touserdata(J, 0, "pdf_document");
 	fz_font *font = js_touserdata(J, 1, "fz_font");
-	const char *on = js_tostring(J, 2);
+	const char *lang = js_tostring(J, 2);
 	const char *wm = js_tostring(J, 3);
 	const char *ss = js_tostring(J, 4);
-	int ord = FZ_ADOBE_JAPAN_1;
+	int ordering;
 	int wmode = 0;
 	int serif = 1;
 	pdf_obj *ind = NULL;
 
-	if (!strcmp(on, "CNS1") || !strcmp(on, "TW") || !strcmp(on, "TC") || !strcmp(on, "Hant")) ord = FZ_ADOBE_CNS_1;
-	else if (!strcmp(on, "GB1") || !strcmp(on, "CN") || !strcmp(on, "SC") || !strcmp(on, "Hans")) ord = FZ_ADOBE_GB_1;
-	else if (!strcmp(on, "Korea1") || !strcmp(on, "KR") || !strcmp(on, "KO")) ord = FZ_ADOBE_KOREA_1;
-	else if (!strcmp(on, "Japan1") || !strcmp(on, "JP") || !strcmp(on, "JA")) ord = FZ_ADOBE_JAPAN_1;
+	ordering = fz_lookup_cjk_ordering_by_language(lang);
 
 	if (!strcmp(wm, "V"))
 		wmode = 1;
@@ -3321,7 +3323,7 @@ static void ffi_PDFDocument_addCJKFont(js_State *J)
 		serif = 0;
 
 	fz_try(ctx)
-		ind = pdf_add_cjk_font(ctx, pdf, font, ord, wmode, serif);
+		ind = pdf_add_cjk_font(ctx, pdf, font, ordering, wmode, serif);
 	fz_catch(ctx)
 		rethrow(J);
 
@@ -4040,6 +4042,18 @@ static void ffi_PDFPage_deleteAnnotation(js_State *J)
 		rethrow(J);
 }
 
+static void ffi_PDFPage_update(js_State *J)
+{
+	fz_context *ctx = js_getcontext(J);
+	pdf_page *page = js_touserdata(J, 0, "pdf_page");
+	int changed = 0;
+	fz_try(ctx)
+		changed = pdf_update_page(ctx, page);
+	fz_catch(ctx)
+		rethrow(J);
+	js_pushboolean(J, changed);
+}
+
 static void ffi_PDFAnnotation_getType(js_State *J)
 {
 	fz_context *ctx = js_getcontext(J);
@@ -4435,6 +4449,18 @@ static void ffi_PDFAnnotation_updateAppearance(js_State *J)
 		rethrow(J);
 }
 
+static void ffi_PDFAnnotation_update(js_State *J)
+{
+	fz_context *ctx = js_getcontext(J);
+	pdf_annot *annot = js_touserdata(J, 0, "pdf_annot");
+	int changed = 0;
+	fz_try(ctx)
+		changed = pdf_update_annot(ctx, annot);
+	fz_catch(ctx)
+		rethrow(J);
+	js_pushboolean(J, changed);
+}
+
 #endif /* FZ_ENABLE_PDF */
 
 int murun_main(int argc, char **argv)
@@ -4737,6 +4763,7 @@ int murun_main(int argc, char **argv)
 	{
 		jsB_propfun(J, "PDFPage.createAnnotation", ffi_PDFPage_createAnnotation, 1);
 		jsB_propfun(J, "PDFPage.deleteAnnotation", ffi_PDFPage_deleteAnnotation, 1);
+		jsB_propfun(J, "PDFPage.update", ffi_PDFPage_update, 0);
 	}
 	js_setregistry(J, "pdf_page");
 
@@ -4765,6 +4792,7 @@ int murun_main(int argc, char **argv)
 		jsB_propfun(J, "PDFAnnotation.getModificationDate", ffi_PDFAnnotation_getModificationDate, 0);
 		jsB_propfun(J, "PDFAnnotation.setModificationDate", ffi_PDFAnnotation_setModificationDate, 0);
 		jsB_propfun(J, "PDFAnnotation.updateAppearance", ffi_PDFAnnotation_updateAppearance, 0);
+		jsB_propfun(J, "PDFAnnotation.update", ffi_PDFAnnotation_update, 0);
 	}
 	js_setregistry(J, "pdf_annot");
 
@@ -4856,12 +4884,14 @@ int murun_main(int argc, char **argv)
 			"a[4] * b[1] + a[5] * b[3] + b[5]];}");
 
 	if (argc > 1) {
+		js_pushstring(J, argv[1]);
+		js_setglobal(J, "scriptPath");
 		js_newarray(J);
-		for (i = 1; i < argc; ++i) {
+		for (i = 2; i < argc; ++i) {
 			js_pushstring(J, argv[i]);
-			js_setindex(J, -2, i - 1);
+			js_setindex(J, -2, i - 2);
 		}
-		js_setglobal(J, "argv");
+		js_setglobal(J, "scriptArgs");
 		if (js_dofile(J, argv[1]))
 			return 1;
 	} else {

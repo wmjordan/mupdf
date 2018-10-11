@@ -109,7 +109,7 @@ void ui_finish(void);
 void ui_set_clipboard(const char *buf);
 const char *ui_get_clipboard(void);
 
-void ui_init_fonts(float pixelsize);
+void ui_init_fonts(void);
 void ui_finish_fonts(void);
 float ui_measure_character(int ucs);
 void ui_begin_text(void);
@@ -238,11 +238,13 @@ extern fz_matrix draw_page_ctm, view_page_ctm, view_page_inv_ctm;
 extern fz_rect page_bounds, draw_page_bounds, view_page_bounds;
 extern fz_irect view_page_area;
 extern char filename[];
+extern int showform;
 
 void run_main_loop(void);
 void do_annotate_panel(void);
 void do_annotate_canvas(fz_irect canvas_area);
 void do_widget_panel(void);
+void do_widget_canvas(fz_irect canvas_area);
 void render_page(void);
 void update_title(void);
 void reload(void);

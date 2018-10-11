@@ -72,8 +72,6 @@ struct pdf_run_processor_s
 
 	fz_default_colorspaces *default_cs;
 
-	int nested_depth;
-
 	/* path object state */
 	fz_path *path;
 	int clip;
@@ -241,18 +239,18 @@ pdf_drop_material(fz_context *ctx, pdf_material *mat)
 }
 
 static void
-pdf_copy_pattern_gstate(fz_context *ctx, pdf_gstate *gs, const pdf_gstate *old)
+pdf_copy_pattern_gstate(fz_context *ctx, pdf_gstate *dst, const pdf_gstate *src)
 {
-	gs->ctm = old->ctm;
+	dst->ctm = src->ctm;
 
-	pdf_drop_font(ctx, gs->text.font);
-	gs->text.font = pdf_keep_font(ctx, old->text.font);
+	pdf_drop_font(ctx, dst->text.font);
+	dst->text.font = pdf_keep_font(ctx, src->text.font);
 
-	pdf_drop_obj(ctx, gs->softmask);
-	gs->softmask = pdf_keep_obj(ctx, old->softmask);
+	pdf_drop_obj(ctx, dst->softmask);
+	dst->softmask = pdf_keep_obj(ctx, src->softmask);
 
-	fz_drop_stroke_state(ctx, gs->stroke_state);
-	gs->stroke_state = fz_keep_stroke_state(ctx, old->stroke_state);
+	fz_drop_stroke_state(ctx, dst->stroke_state);
+	dst->stroke_state = fz_keep_stroke_state(ctx, src->stroke_state);
 }
 
 static void
@@ -340,10 +338,11 @@ pdf_grestore(fz_context *ctx, pdf_run_processor *pr)
 	}
 }
 
-static void
-pdf_show_pattern(fz_context *ctx, pdf_run_processor *pr, pdf_pattern *pat, pdf_gstate *pat_gstate, fz_rect area, int what)
+static pdf_gstate *
+pdf_show_pattern(fz_context *ctx, pdf_run_processor *pr, pdf_pattern *pat, int pat_gstate_num, fz_rect area, int what)
 {
 	pdf_gstate *gstate;
+	pdf_gstate *pat_gstate;
 	int gparent_save;
 	fz_matrix ptm, invptm, gparent_save_ctm;
 	int x0, y0, x1, y1;
@@ -353,6 +352,7 @@ pdf_show_pattern(fz_context *ctx, pdf_run_processor *pr, pdf_pattern *pat, pdf_g
 
 	pdf_gsave(ctx, pr);
 	gstate = pr->gstate + pr->gtop;
+	pat_gstate = pr->gstate + pat_gstate_num;
 
 	/* Patterns are run with the gstate of the parent */
 	pdf_copy_pattern_gstate(ctx, gstate, pat_gstate);
@@ -496,6 +496,8 @@ pdf_show_pattern(fz_context *ctx, pdf_run_processor *pr, pdf_pattern *pat, pdf_g
 	}
 
 	pdf_grestore(ctx, pr);
+
+	return pr->gstate + pr->gtop;
 }
 
 static void
@@ -516,7 +518,7 @@ pdf_show_image_imp(fz_context *ctx, pdf_run_processor *pr, fz_image *image, fz_m
 	{
 		fz_clip_image_mask(ctx, pr->dev, image, image_ctm, bbox);
 		fz_try(ctx)
-			pdf_show_pattern(ctx, pr, gstate->fill.pattern, &pr->gstate[gstate->fill.gstate_num], bbox, PDF_FILL);
+			gstate = pdf_show_pattern(ctx, pr, gstate->fill.pattern, gstate->fill.gstate_num, bbox, PDF_FILL);
 		fz_always(ctx)
 			fz_pop_clip(ctx, pr->dev);
 		fz_catch(ctx)
@@ -605,6 +607,14 @@ pdf_show_path(fz_context *ctx, pdf_run_processor *pr, int doclose, int dofill, i
 	fz_rect bbox;
 	softmask_save softmask = { NULL };
 	int knockout_group = 0;
+	char errmess[256] = "";
+	int err = FZ_ERROR_NONE;
+	int innerclip = 0;
+
+	fz_var(knockout_group);
+	fz_var(bbox);
+	fz_var(path);
+	fz_var(innerclip);
 
 	if (dostroke) {
 		if (pr->dev->flags & (FZ_DEVFLAG_STROKECOLOR_UNDEFINED | FZ_DEVFLAG_LINEJOIN_UNDEFINED | FZ_DEVFLAG_LINEWIDTH_UNDEFINED))
@@ -667,17 +677,21 @@ pdf_show_path(fz_context *ctx, pdf_run_processor *pr, int doclose, int dofill, i
 				if (gstate->fill.pattern)
 				{
 					fz_clip_path(ctx, pr->dev, path, even_odd, gstate->ctm, bbox);
-					pdf_show_pattern(ctx, pr, gstate->fill.pattern, &pr->gstate[gstate->fill.gstate_num], bbox, PDF_FILL);
+					innerclip = 1;
+					gstate = pdf_show_pattern(ctx, pr, gstate->fill.pattern, gstate->fill.gstate_num, bbox, PDF_FILL);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			case PDF_MAT_SHADE:
 				if (gstate->fill.shade)
 				{
 					fz_clip_path(ctx, pr->dev, path, even_odd, gstate->ctm, bbox);
+					innerclip = 1;
 					/* The cluster and page 2 of patterns.pdf shows that fz_fill_shade should NOT be called with gstate->ctm. */
 					fz_fill_shade(ctx, pr->dev, gstate->fill.shade, pr->gstate[gstate->fill.gstate_num].ctm, gstate->fill.alpha, &gstate->fill.color_params);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			}
@@ -697,43 +711,101 @@ pdf_show_path(fz_context *ctx, pdf_run_processor *pr, int doclose, int dofill, i
 				if (gstate->stroke.pattern)
 				{
 					fz_clip_stroke_path(ctx, pr->dev, path, gstate->stroke_state, gstate->ctm, bbox);
-					pdf_show_pattern(ctx, pr, gstate->stroke.pattern, &pr->gstate[gstate->stroke.gstate_num], bbox, PDF_STROKE);
+					innerclip = 1;
+					gstate = pdf_show_pattern(ctx, pr, gstate->stroke.pattern, gstate->stroke.gstate_num, bbox, PDF_STROKE);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			case PDF_MAT_SHADE:
 				if (gstate->stroke.shade)
 				{
 					fz_clip_stroke_path(ctx, pr->dev, path, gstate->stroke_state, gstate->ctm, bbox);
+					innerclip = 1;
 					fz_fill_shade(ctx, pr->dev, gstate->stroke.shade, pr->gstate[gstate->stroke.gstate_num].ctm, gstate->stroke.alpha, &gstate->stroke.color_params);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			}
 		}
-
-		if (knockout_group)
-			fz_end_group(ctx, pr->dev);
-
-		if (dofill || dostroke)
-			pdf_end_group(ctx, pr, &softmask);
-
-		if (pr->clip)
-		{
-			gstate = pr->gstate + pr->gtop; /* in case it was changed by pdf_begin_group */
-			gstate->clip_depth++;
-			fz_clip_path(ctx, pr->dev, path, pr->clip_even_odd, gstate->ctm, bbox);
-			pr->clip = 0;
-		}
 	}
 	fz_always(ctx)
 	{
+		if (innerclip)
+		{
+			fz_try(ctx)
+			{
+				fz_pop_clip(ctx, pr->dev);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
+		if (knockout_group)
+		{
+			fz_try(ctx)
+			{
+				fz_end_group(ctx, pr->dev);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				if (err)
+					fz_warn(ctx, "ignoring error: %s", fz_caught_message(ctx));
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
+		if (dofill || dostroke)
+		{
+			fz_try(ctx)
+			{
+				pdf_end_group(ctx, pr, &softmask);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				if (err)
+					fz_warn(ctx, "ignoring error: %s", fz_caught_message(ctx));
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
+		if (pr->clip)
+		{
+			fz_try(ctx)
+			{
+				gstate->clip_depth++;
+				fz_clip_path(ctx, pr->dev, path, pr->clip_even_odd, gstate->ctm, bbox);
+				pr->clip = 0;
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				if (err)
+					fz_warn(ctx, "ignoring error: %s", fz_caught_message(ctx));
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
 		fz_drop_path(ctx, path);
 	}
 	fz_catch(ctx)
 	{
 		fz_rethrow(ctx);
 	}
+
+	/* Rethrow postponed errors */
+	if (err)
+		fz_throw(ctx, err, "%s", errmess);
 }
 
 /*
@@ -751,6 +823,14 @@ pdf_flush_text(fz_context *ctx, pdf_run_processor *pr)
 	int doinvisible;
 	softmask_save softmask = { NULL };
 	int knockout_group = 0;
+	int innerclip = 0;
+	fz_rect tb;
+	char errmess[256] = "";
+	int err = FZ_ERROR_NONE;
+
+	fz_var(innerclip);
+	fz_var(knockout_group);
+	fz_var(tb);
 
 	text = pdf_tos_get_text(ctx, &pr->tos);
 	if (!text)
@@ -772,9 +852,10 @@ pdf_flush_text(fz_context *ctx, pdf_run_processor *pr)
 	if (pr->super.hidden)
 		dostroke = dofill = 0;
 
+	tb = fz_transform_rect(pr->tos.text_bbox, gstate->ctm);
+
 	fz_try(ctx)
 	{
-		fz_rect tb = fz_transform_rect(pr->tos.text_bbox, gstate->ctm);
 		if (dostroke)
 			tb = fz_adjust_rect_for_stroke(ctx, tb, gstate->stroke_state, gstate->ctm);
 
@@ -820,17 +901,21 @@ pdf_flush_text(fz_context *ctx, pdf_run_processor *pr)
 				if (gstate->fill.pattern)
 				{
 					fz_clip_text(ctx, pr->dev, text, gstate->ctm, tb);
-					pdf_show_pattern(ctx, pr, gstate->fill.pattern, &pr->gstate[gstate->fill.gstate_num], tb, PDF_FILL);
+					innerclip = 1;
+					gstate = pdf_show_pattern(ctx, pr, gstate->fill.pattern, gstate->fill.gstate_num, tb, PDF_FILL);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			case PDF_MAT_SHADE:
 				if (gstate->fill.shade)
 				{
 					fz_clip_text(ctx, pr->dev, text, gstate->ctm, tb);
+					innerclip = 1;
 					/* Page 2 of patterns.pdf shows that fz_fill_shade should NOT be called with gstate->ctm */
 					fz_fill_shade(ctx, pr->dev, gstate->fill.shade, pr->gstate[gstate->fill.gstate_num].ctm, gstate->fill.alpha, &gstate->fill.color_params);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			}
@@ -850,41 +935,101 @@ pdf_flush_text(fz_context *ctx, pdf_run_processor *pr)
 				if (gstate->stroke.pattern)
 				{
 					fz_clip_stroke_text(ctx, pr->dev, text, gstate->stroke_state, gstate->ctm, tb);
-					pdf_show_pattern(ctx, pr, gstate->stroke.pattern, &pr->gstate[gstate->stroke.gstate_num], tb, PDF_STROKE);
+					innerclip = 1;
+					gstate = pdf_show_pattern(ctx, pr, gstate->stroke.pattern, gstate->stroke.gstate_num, tb, PDF_STROKE);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			case PDF_MAT_SHADE:
 				if (gstate->stroke.shade)
 				{
 					fz_clip_stroke_text(ctx, pr->dev, text, gstate->stroke_state, gstate->ctm, tb);
+					innerclip = 1;
 					fz_fill_shade(ctx, pr->dev, gstate->stroke.shade, pr->gstate[gstate->stroke.gstate_num].ctm, gstate->stroke.alpha, &gstate->stroke.color_params);
 					fz_pop_clip(ctx, pr->dev);
+					innerclip = 0;
 				}
 				break;
 			}
 		}
 
-		if (knockout_group)
-			fz_end_group(ctx, pr->dev);
-
-		if (dofill || dostroke)
-			pdf_end_group(ctx, pr, &softmask);
-
-		if (doclip)
-		{
-			gstate->clip_depth++;
-			fz_clip_text(ctx, pr->dev, text, gstate->ctm, tb);
-		}
 	}
 	fz_always(ctx)
 	{
+		if (innerclip)
+		{
+			fz_try(ctx)
+			{
+				fz_pop_clip(ctx, pr->dev);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
+		if (knockout_group)
+		{
+			fz_try(ctx)
+			{
+				fz_end_group(ctx, pr->dev);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				if (err)
+					fz_warn(ctx, "ignoring error: %s", fz_caught_message(ctx));
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
+		if (dofill || dostroke)
+		{
+			fz_try(ctx)
+			{
+				pdf_end_group(ctx, pr, &softmask);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				if (err)
+					fz_warn(ctx, "ignoring error: %s", fz_caught_message(ctx));
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
+		if (doclip)
+		{
+			fz_try(ctx)
+			{
+				gstate->clip_depth++;
+				fz_clip_text(ctx, pr->dev, text, gstate->ctm, tb);
+			}
+			fz_catch(ctx)
+			{
+				/* Postpone the problem */
+				if (err)
+					fz_warn(ctx, "ignoring error: %s", fz_caught_message(ctx));
+				err = fz_caught(ctx);
+				strcpy(errmess, fz_caught_message(ctx));
+			}
+		}
+
 		fz_drop_text(ctx, text);
 	}
 	fz_catch(ctx)
 	{
 		fz_rethrow(ctx);
 	}
+
+	/* Rethrow postponed errors */
+	if (err)
+		fz_throw(ctx, err, "%s", errmess);
 
 	return pr->gstate + pr->gtop;
 }
@@ -903,9 +1048,8 @@ pdf_show_char(fz_context *ctx, pdf_run_processor *pr, int cid)
 
 	gid = pdf_tos_make_trm(ctx, &pr->tos, &gstate->text, fontdesc, cid, &trm);
 
-	/* If we are a type3 font within a type 3 font, or are otherwise
-	 * uncachable, then render direct. */
-	render_direct = (!fz_font_ft_face(ctx, fontdesc->font) && pr->nested_depth > 0) || !fz_glyph_cacheable(ctx, fontdesc->font, gid);
+	/* If we are uncachable, then render direct. */
+	render_direct = !fz_glyph_cacheable(ctx, fontdesc->font, gid);
 
 	/* flush buffered text if rendermode has changed */
 	if (!pr->tos.text || gstate->text.render != pr->tos.text_mode || render_direct)
@@ -920,7 +1064,7 @@ pdf_show_char(fz_context *ctx, pdf_run_processor *pr, int cid)
 		 * type3 glyphs that seem to inherit current graphics
 		 * attributes, or type 3 glyphs within type3 glyphs). */
 		fz_matrix composed = fz_concat(trm, gstate->ctm);
-		fz_render_t3_glyph_direct(ctx, pr->dev, fontdesc->font, gid, composed, gstate, pr->nested_depth, pr->default_cs);
+		fz_render_t3_glyph_direct(ctx, pr->dev, fontdesc->font, gid, composed, gstate, pr->default_cs);
 		/* Render text invisibly so that it can still be extracted. */
 		pr->tos.text_mode = 3;
 	}
@@ -1079,11 +1223,11 @@ pdf_init_gstate(fz_context *ctx, pdf_gstate *gs, fz_matrix ctm)
 }
 
 static void
-pdf_copy_gstate(fz_context *ctx, pdf_gstate *gs, pdf_gstate *old)
+pdf_copy_gstate(fz_context *ctx, pdf_gstate *dst, pdf_gstate *src)
 {
-	pdf_drop_gstate(ctx, gs);
-	*gs = *old;
-	pdf_keep_gstate(ctx, gs);
+	pdf_drop_gstate(ctx, dst);
+	*dst = *src;
+	pdf_keep_gstate(ctx, dst);
 }
 
 /*
@@ -1194,6 +1338,7 @@ pdf_run_xobject(fz_context *ctx, pdf_run_processor *proc, pdf_obj *xobj, pdf_obj
 	int gparent_save;
 	fz_matrix gparent_save_ctm;
 	int cleanup_state = 0;
+	int err = FZ_ERROR_NONE;
 	char errmess[256] = "";
 	pdf_obj *resources;
 	fz_rect xobj_bbox;
@@ -1213,6 +1358,7 @@ pdf_run_xobject(fz_context *ctx, pdf_run_processor *proc, pdf_obj *xobj, pdf_obj
 	fz_var(oldbot);
 	fz_var(cs);
 	fz_var(saved_def_cs);
+	fz_var(transparency);
 
 	gparent_save = pr->gparent;
 	pr->gparent = pr->gtop;
@@ -1313,6 +1459,7 @@ pdf_run_xobject(fz_context *ctx, pdf_run_processor *proc, pdf_obj *xobj, pdf_obj
 			fz_catch(ctx)
 			{
 				/* Postpone the problem */
+				err = fz_caught(ctx);
 				strcpy(errmess, fz_caught_message(ctx));
 			}
 		}
@@ -1342,8 +1489,9 @@ pdf_run_xobject(fz_context *ctx, pdf_run_processor *proc, pdf_obj *xobj, pdf_obj
 				fz_catch(ctx)
 				{
 					/* Postpone the problem */
-					if (errmess[0])
-						fz_warn(ctx, "%s", errmess);
+					if (err)
+						fz_warn(ctx, "ignoring error: %s", errmess);
+					err = fz_caught(ctx);
 					strcpy(errmess, fz_caught_message(ctx));
 				}
 			}
@@ -1356,8 +1504,9 @@ pdf_run_xobject(fz_context *ctx, pdf_run_processor *proc, pdf_obj *xobj, pdf_obj
 				fz_catch(ctx)
 				{
 					/* Postpone the problem */
-					if (errmess[0])
-						fz_warn(ctx, "%s", errmess);
+					if (err)
+						fz_warn(ctx, "ignoring error: %s", errmess);
+					err = fz_caught(ctx);
 					strcpy(errmess, fz_caught_message(ctx));
 				}
 			}
@@ -1377,8 +1526,8 @@ pdf_run_xobject(fz_context *ctx, pdf_run_processor *proc, pdf_obj *xobj, pdf_obj
 	}
 
 	/* Rethrow postponed errors */
-	if (errmess[0])
-		fz_throw(ctx, FZ_ERROR_GENERIC, "%s", errmess);
+	if (err)
+		fz_throw(ctx, err, "%s", errmess);
 }
 
 /* general graphics state */
@@ -1830,16 +1979,12 @@ static void pdf_run_dquote(fz_context *ctx, pdf_processor *proc, float aw, float
 static void pdf_run_d0(fz_context *ctx, pdf_processor *proc, float wx, float wy)
 {
 	pdf_run_processor *pr = (pdf_run_processor *)proc;
-	if (pr->nested_depth > 1)
-		return;
 	pr->dev->flags |= FZ_DEVFLAG_COLOR;
 }
 
 static void pdf_run_d1(fz_context *ctx, pdf_processor *proc, float wx, float wy, float llx, float lly, float urx, float ury)
 {
 	pdf_run_processor *pr = (pdf_run_processor *)proc;
-	if (pr->nested_depth > 1)
-		return;
 	pr->dev->flags |= FZ_DEVFLAG_MASK | FZ_DEVFLAG_BBOX_DEFINED;
 	pr->dev->flags &= ~(FZ_DEVFLAG_FILLCOLOR_UNDEFINED |
 				FZ_DEVFLAG_STROKECOLOR_UNDEFINED |
@@ -2080,7 +2225,7 @@ pdf_drop_run_processor(fz_context *ctx, pdf_processor *proc)
 }
 
 pdf_processor *
-pdf_new_run_processor(fz_context *ctx, fz_device *dev, fz_matrix ctm, const char *usage, pdf_gstate *gstate, int nested, fz_default_colorspaces *default_cs)
+pdf_new_run_processor(fz_context *ctx, fz_device *dev, fz_matrix ctm, const char *usage, pdf_gstate *gstate, fz_default_colorspaces *default_cs)
 {
 	pdf_run_processor *proc = pdf_new_processor(ctx, sizeof *proc);
 	{
@@ -2213,8 +2358,6 @@ pdf_new_run_processor(fz_context *ctx, fz_device *dev, fz_matrix ctm, const char
 	proc->dev = dev;
 
 	proc->default_cs = fz_keep_default_colorspaces(ctx, default_cs);
-
-	proc->nested_depth = nested;
 
 	proc->path = NULL;
 	proc->clip = 0;

@@ -8,6 +8,7 @@ pdf_run_annot_with_usage(fz_context *ctx, pdf_document *doc, pdf_page *page, pdf
 	fz_rect mediabox;
 	pdf_processor *proc = NULL;
 	fz_default_colorspaces *default_cs;
+	int flags;
 
 	fz_var(proc);
 
@@ -15,12 +16,24 @@ pdf_run_annot_with_usage(fz_context *ctx, pdf_document *doc, pdf_page *page, pdf
 	if (default_cs)
 		fz_set_default_colorspaces(ctx, dev, default_cs);
 
-	pdf_page_transform(ctx, page, &mediabox, &page_ctm);
-	ctm = fz_concat(page_ctm, ctm);
-
 	fz_try(ctx)
 	{
-		proc = pdf_new_run_processor(ctx, dev, ctm, usage, NULL, 0, default_cs);
+		pdf_page_transform(ctx, page, &mediabox, &page_ctm);
+
+		flags = pdf_dict_get_int(ctx, annot->obj, PDF_NAME(F));
+		if (flags & PDF_ANNOT_IS_NO_ROTATE)
+		{
+			int rotate = pdf_to_int(ctx, pdf_dict_get_inheritable(ctx, page->obj, PDF_NAME(Rotate)));
+			fz_rect rect = pdf_dict_get_rect(ctx, annot->obj, PDF_NAME(Rect));
+			fz_point tp = fz_transform_point_xy(rect.x0, rect.y1, page_ctm);
+			page_ctm = fz_concat(page_ctm, fz_translate(-tp.x, -tp.y));
+			page_ctm = fz_concat(page_ctm, fz_rotate(-rotate));
+			page_ctm = fz_concat(page_ctm, fz_translate(tp.x, tp.y));
+		}
+
+		ctm = fz_concat(page_ctm, ctm);
+
+		proc = pdf_new_run_processor(ctx, dev, ctm, usage, NULL, default_cs);
 		pdf_process_annot(ctx, proc, doc, page, annot, cookie);
 		pdf_close_processor(ctx, proc);
 	}
@@ -83,7 +96,7 @@ pdf_run_page_contents_with_usage(fz_context *ctx, pdf_document *doc, pdf_page *p
 			colorspace = NULL;
 		}
 
-		proc = pdf_new_run_processor(ctx, dev, ctm, usage, NULL, 0, default_cs);
+		proc = pdf_new_run_processor(ctx, dev, ctm, usage, NULL, default_cs);
 		pdf_process_contents(ctx, proc, doc, resources, contents, cookie);
 		pdf_close_processor(ctx, proc);
 	}
@@ -214,14 +227,11 @@ pdf_run_page(fz_context *ctx, pdf_page *page, fz_device *dev, fz_matrix ctm, fz_
 }
 
 void
-pdf_run_glyph(fz_context *ctx, pdf_document *doc, pdf_obj *resources, fz_buffer *contents, fz_device *dev, fz_matrix ctm, void *gstate, int nested_depth, fz_default_colorspaces *default_cs)
+pdf_run_glyph(fz_context *ctx, pdf_document *doc, pdf_obj *resources, fz_buffer *contents, fz_device *dev, fz_matrix ctm, void *gstate, fz_default_colorspaces *default_cs)
 {
 	pdf_processor *proc;
 
-	if (nested_depth > 10)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Too many nestings of Type3 glyphs");
-
-	proc = pdf_new_run_processor(ctx, dev, ctm, "View", gstate, nested_depth+1, default_cs);
+	proc = pdf_new_run_processor(ctx, dev, ctm, "View", gstate, default_cs);
 	fz_try(ctx)
 	{
 		pdf_process_glyph(ctx, proc, doc, resources, contents);

@@ -58,27 +58,30 @@ load_icc_based(fz_context *ctx, pdf_obj *dict, int alt)
 	{
 		if (fz_get_cmm_engine(ctx))
 		{
-			const char *name;
-			if (n == 1) name = "ICCBased-Gray";
-			else if (n == 3) name = "ICCBased-RGB";
-			else if (n == 4) name = "ICCBased-CMYK";
-			else name = "ICCBased";
+			enum fz_colorspace_type type;
+			if (n == 1) type = FZ_COLORSPACE_GRAY;
+			else if (n == 3) type = FZ_COLORSPACE_RGB;
+			else if (n == 4) type = FZ_COLORSPACE_CMYK;
+			else type = FZ_COLORSPACE_NONE;
 			buffer = pdf_load_stream(ctx, dict);
-			cs = fz_new_icc_colorspace(ctx, name, n, buffer);
+			cs = fz_new_icc_colorspace(ctx, type, buffer);
 		}
 	}
 	fz_always(ctx)
 		fz_drop_buffer(ctx, buffer);
 	fz_catch(ctx)
 	{
-		if (!alt)
+		if (!alt) {
+			fz_drop_colorspace(ctx, cs_alt);
 			fz_rethrow(ctx);
+		}
 	}
 
 	if (cs)
 	{
 		if (n != 1 && n != 3 && n != 4)
 		{
+			fz_drop_colorspace(ctx, cs_alt);
 			fz_drop_colorspace(ctx, cs);
 			fz_throw(ctx, FZ_ERROR_GENERIC, "ICC Based must have 1, 3 or 4 components");
 		}
@@ -94,7 +97,10 @@ load_icc_based(fz_context *ctx, pdf_obj *dict, int alt)
 	 * or because we aren't in an ICC workflow. If we aren't allowed
 	 * to return the alternate, then that's all she wrote. */
 	if (!alt)
+	{
+		fz_drop_colorspace(ctx, cs_alt);
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Unable to read ICC workflow");
+	}
 
 	/* If we have an alternate we are allowed to use, return that. */
 	if (cs_alt)

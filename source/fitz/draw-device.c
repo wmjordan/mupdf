@@ -93,8 +93,8 @@ static void dump_spaces(int x, const char *s)
 #endif
 
 #ifdef DUMP_STACK_CHANGES
-#define STACK_PUSHED(A) stack_change(ctx, dev, ">" ## A)
-#define STACK_POPPED(A) stack_change(ctx, dev, "<" ## A)
+#define STACK_PUSHED(A) stack_change(ctx, dev, ">" A)
+#define STACK_POPPED(A) stack_change(ctx, dev, "<" A)
 #define STACK_CONVERT(A) stack_change(ctx, dev, A)
 
 static void stack_change(fz_context *ctx, fz_draw_device *dev, char *s)
@@ -1486,7 +1486,7 @@ fz_draw_fill_shade(fz_context *ctx, fz_device *devp, fz_shade *shade, fz_matrix 
 		eop = resolve_color(ctx, &op, shade->background, colorspace, alpha, cp, colorbv, state->dest);
 
 		n = dest->n;
-		if (eop)
+		if (fz_overprint_required(eop))
 		{
 			for (y = scissor.y0; y < scissor.y1; y++)
 			{
@@ -1950,6 +1950,8 @@ fz_draw_clip_image_mask(fz_context *ctx, fz_device *devp, fz_image *image, fz_ma
 	fz_colorspace *model = state->dest->colorspace;
 	fz_irect clip;
 
+	fz_var(pixmap);
+
 	if (dev->top == 0 && dev->resolve_spots)
 		state = push_group_for_separations(ctx, dev, fz_default_color_params(ctx)/* FIXME */, dev->default_cs);
 
@@ -1979,10 +1981,10 @@ fz_draw_clip_image_mask(fz_context *ctx, fz_device *devp, fz_image *image, fz_ma
 		bbox = fz_intersect_irect(bbox, fz_irect_from_rect(tscissor));
 	}
 
-	pixmap = fz_get_pixmap_from_image(ctx, image, NULL, &local_ctm, &dx, &dy);
-
 	fz_try(ctx)
 	{
+		pixmap = fz_get_pixmap_from_image(ctx, image, NULL, &local_ctm, &dx, &dy);
+
 		state[1].mask = fz_new_pixmap_with_bbox(ctx, NULL, bbox, NULL, 1);
 		fz_clear_pixmap(ctx, state[1].mask);
 
@@ -3057,7 +3059,7 @@ new_draw_device(fz_context *ctx, fz_matrix transform, fz_pixmap *dest, const fz_
 	 * to trigger on later.
 	 */
 	if (dest->seps || dev->proof_cs != NULL)
-#ifdef FZ_ENABLE_SPOT_RENDERING
+#if FZ_ENABLE_SPOT_RENDERING
 		dev->resolve_spots = 1;
 #else
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Spot rendering (and overprint/overprint simulation) not available in this build");

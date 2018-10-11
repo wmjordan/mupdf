@@ -409,15 +409,15 @@ pdf_load_substitute_cjk_font(fz_context *ctx, pdf_font_desc *fontdesc, const cha
 	if (!fontdesc->font)
 	{
 		const unsigned char *data;
-		int len;
-		int index;
+		int size;
+		int subfont;
 
-		data = fz_lookup_cjk_font(ctx, ros, serif, &len, &index);
+		data = fz_lookup_cjk_font(ctx, ros, &size, &subfont);
 		if (!data)
 			fz_throw(ctx, FZ_ERROR_GENERIC, "cannot find builtin CJK font");
 
 		/* A glyph bbox cache is too big for CJK fonts. */
-		fontdesc->font = fz_new_font_from_memory(ctx, fontname, data, len, index, 0);
+		fontdesc->font = fz_new_font_from_memory(ctx, fontname, data, size, subfont, 0);
 	}
 
 	fontdesc->font->flags.ft_substitute = 1;
@@ -451,13 +451,13 @@ pdf_load_system_font(fz_context *ctx, pdf_font_desc *fontdesc, const char *fontn
 	if (collection)
 	{
 		if (!strcmp(collection, "Adobe-CNS1"))
-			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_CNS_1, serif);
+			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_CNS, serif);
 		else if (!strcmp(collection, "Adobe-GB1"))
-			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_GB_1, serif);
+			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_GB, serif);
 		else if (!strcmp(collection, "Adobe-Japan1"))
-			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_JAPAN_1, serif);
+			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_JAPAN, serif);
 		else if (!strcmp(collection, "Adobe-Korea1"))
-			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_KOREA_1, serif);
+			pdf_load_substitute_cjk_font(ctx, fontdesc, fontname, FZ_ADOBE_KOREA, serif);
 		else
 		{
 			if (strcmp(collection, "Adobe-Identity") != 0)
@@ -1379,13 +1379,16 @@ pdf_make_width_table(fz_context *ctx, pdf_font_desc *fontdesc)
 }
 
 pdf_font_desc *
-pdf_load_font(fz_context *ctx, pdf_document *doc, pdf_obj *rdb, pdf_obj *dict, int nested_depth)
+pdf_load_font(fz_context *ctx, pdf_document *doc, pdf_obj *rdb, pdf_obj *dict)
 {
 	pdf_obj *subtype;
 	pdf_obj *dfonts;
 	pdf_obj *charprocs;
 	pdf_font_desc *fontdesc = NULL;
 	int type3 = 0;
+
+	if (pdf_obj_marked(ctx, dict))
+		fz_throw(ctx, FZ_ERROR_SYNTAX, "Recursive Type3 font definition.");
 
 	if ((fontdesc = pdf_find_item(ctx, pdf_drop_font_imp, dict)) != NULL)
 	{
@@ -1426,17 +1429,20 @@ pdf_load_font(fz_context *ctx, pdf_document *doc, pdf_obj *rdb, pdf_obj *dict, i
 		fontdesc = pdf_load_simple_font(ctx, doc, dict);
 	}
 
+	pdf_mark_obj(ctx, dict);
 	fz_try(ctx)
 	{
 		/* Create glyph width table for stretching substitute fonts and text extraction. */
 		pdf_make_width_table(ctx, fontdesc);
 
-		pdf_store_item(ctx, dict, fontdesc, fontdesc->size);
-
-		/* Load glyphs after storing, in case of cyclical dependencies */
+		/* Load CharProcs */
 		if (type3)
-			pdf_load_type3_glyphs(ctx, doc, fontdesc, nested_depth);
+			pdf_load_type3_glyphs(ctx, doc, fontdesc);
+
+		pdf_store_item(ctx, dict, fontdesc, fontdesc->size);
 	}
+	fz_always(ctx)
+		pdf_unmark_obj(ctx, dict);
 	fz_catch(ctx)
 	{
 		pdf_drop_font(ctx, fontdesc);
@@ -2127,28 +2133,28 @@ pdf_add_cjk_font(fz_context *ctx, pdf_document *doc, fz_font *fzfont, int script
 
 	switch (script)
 	{
-	case FZ_ADOBE_CNS_1: /* traditional chinese */
+	default:
+		script = FZ_ADOBE_CNS;
+		/* fall through */
+	case FZ_ADOBE_CNS: /* traditional chinese */
 		basefont = serif ? "Ming" : "Fangti";
 		encoding = wmode ? "UniCNS-UTF16-V" : "UniCNS-UTF16-H";
 		ordering = "CNS1";
 		supplement = 7;
 		break;
-	case FZ_ADOBE_GB_1: /* simplified chinese */
+	case FZ_ADOBE_GB: /* simplified chinese */
 		basefont = serif ? "Song" : "Heiti";
 		encoding = wmode ? "UniGB-UTF16-V" : "UniGB-UTF16-H";
 		ordering = "GB1";
 		supplement = 5;
 		break;
-	default:
-		script = FZ_ADOBE_JAPAN_1;
-		/* fall through */
-	case FZ_ADOBE_JAPAN_1:
+	case FZ_ADOBE_JAPAN:
 		basefont = serif ? "Mincho" : "Gothic";
 		encoding = wmode ? "UniJIS-UTF16-V" : "UniJIS-UTF16-H";
 		ordering = "Japan1";
 		supplement = 6;
 		break;
-	case FZ_ADOBE_KOREA_1:
+	case FZ_ADOBE_KOREA:
 		basefont = serif ? "Batang" : "Dotum";
 		encoding = wmode ? "UniKS-UTF16-V" : "UniKS-UTF16-H";
 		ordering = "Korea1";

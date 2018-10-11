@@ -5,12 +5,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "mujs.h"
+
 #ifndef PATH_MAX
 #define PATH_MAX 2048
 #endif
 
 #ifndef _WIN32
 #include <unistd.h> /* for fork and exec */
+#else
+char *realpath(const char *path, char *resolved_path); /* in gl-file.c */
+#endif
+
+#ifdef __APPLE__
+static void cleanup(void);
+void glutLeaveMainLoop(void)
+{
+	cleanup();
+	exit(0);
+}
 #endif
 
 fz_context *ctx = NULL;
@@ -122,6 +135,7 @@ static int showlinks = 0;
 static int showsearch = 0;
 static int showinfo = 0;
 static int showhelp = 0;
+int showform = 0;
 
 struct mark
 {
@@ -134,6 +148,206 @@ static struct mark history[256];
 static int future_count = 0;
 static struct mark future[256];
 static struct mark marks[10];
+
+static char *get_history_filename(void)
+{
+	static char history_path[PATH_MAX];
+	static int once = 0;
+	if (!once)
+	{
+		char *home = getenv("HOME");
+		if (!home)
+			home = getenv("USERPROFILE");
+		if (!home)
+			home = "/tmp";
+		fz_snprintf(history_path, sizeof history_path, "%s/.mupdf.history", home);
+		fz_cleanname(history_path);
+		once = 1;
+	}
+	return history_path;
+}
+
+static void read_history_file_as_json(js_State *J)
+{
+	fz_buffer *buf = NULL;
+	const char *json = "{}";
+
+	fz_var(buf);
+
+	if (fz_file_exists(ctx, get_history_filename()))
+	{
+		fz_try(ctx)
+		{
+			buf = fz_read_file(ctx, get_history_filename());
+			json = fz_string_from_buffer(ctx, buf);
+		}
+		fz_catch(ctx)
+			;
+	}
+
+	js_getglobal(J, "JSON");
+	js_getproperty(J, -1, "parse");
+	js_pushnull(J);
+	js_pushstring(J, json);
+	if (js_pcall(J, 1))
+	{
+		fz_warn(ctx, "Can't parse history file: %s", js_trystring(J, -1, "error"));
+		js_pop(J, 1);
+		js_newobject(J);
+	}
+	else
+	{
+		js_rot2pop1(J);
+	}
+
+	fz_drop_buffer(ctx, buf);
+}
+
+static void load_history(void)
+{
+	js_State *J;
+	char absname[PATH_MAX];
+	int i, n;
+
+	if (!realpath(filename, absname))
+		return;
+
+	J = js_newstate(NULL, NULL, 0);
+
+	read_history_file_as_json(J);
+
+	if (js_hasproperty(J, -1, absname))
+	{
+		if (js_hasproperty(J, -1, "current"))
+		{
+			currentpage = js_tryinteger(J, -1, 1) - 1;
+			js_pop(J, 1);
+		}
+
+		if (js_hasproperty(J, -1, "history"))
+		{
+			if (js_isarray(J, -1))
+			{
+				history_count = fz_clampi(js_getlength(J, -1), 0, nelem(history));
+				for (i = 0; i < history_count; ++i)
+				{
+					js_getindex(J, -1, i);
+					history[i].page = js_tryinteger(J, -1, 1) - 1;
+					js_pop(J, 1);
+				}
+			}
+			js_pop(J, 1);
+		}
+
+		if (js_hasproperty(J, -1, "future"))
+		{
+			if (js_isarray(J, -1))
+			{
+				future_count = fz_clampi(js_getlength(J, -1), 0, nelem(future));
+				for (i = 0; i < future_count; ++i)
+				{
+					js_getindex(J, -1, i);
+					future[i].page = js_tryinteger(J, -1, 1) - 1;
+					js_pop(J, 1);
+				}
+			}
+			js_pop(J, 1);
+		}
+
+		if (js_hasproperty(J, -1, "marks"))
+		{
+			if (js_isarray(J, -1))
+			{
+				n = fz_clampi(js_getlength(J, -1), 0, nelem(marks));
+				for (i = 0; i < n; ++i)
+				{
+					js_getindex(J, -1, i);
+					marks[i].page = js_tryinteger(J, -1, 1) - 1;
+					js_pop(J, 1);
+				}
+			}
+			js_pop(J, 1);
+		}
+	}
+
+	js_freestate(J);
+}
+
+static void save_history(void)
+{
+	js_State *J;
+	char absname[PATH_MAX];
+	fz_output *out = NULL;
+	const char *json;
+	int i;
+
+	fz_var(out);
+
+	if (!doc)
+		return;
+
+	if (!realpath(filename, absname))
+		return;
+
+	J = js_newstate(NULL, NULL, 0);
+
+	read_history_file_as_json(J);
+
+	js_newobject(J);
+	{
+		js_pushnumber(J, currentpage+1);
+		js_setproperty(J, -2, "current");
+
+		js_newarray(J);
+		for (i = 0; i < history_count; ++i)
+		{
+			js_pushnumber(J, history[i].page+1);
+			js_setindex(J, -2, i);
+		}
+		js_setproperty(J, -2, "history");
+
+		js_newarray(J);
+		for (i = 0; i < future_count; ++i)
+		{
+			js_pushnumber(J, future[i].page+1);
+			js_setindex(J, -2, i);
+		}
+		js_setproperty(J, -2, "future");
+
+		js_newarray(J);
+		for (i = 0; i < nelem(marks); ++i)
+		{
+			js_pushnumber(J, marks[i].page+1);
+			js_setindex(J, -2, i);
+		}
+		js_setproperty(J, -2, "marks");
+	}
+	js_setproperty(J, -2, absname);
+
+	js_getglobal(J, "JSON");
+	js_getproperty(J, -1, "stringify");
+	js_pushnull(J);
+	js_copy(J, -4);
+	js_pushnull(J);
+	js_pushnumber(J, 0);
+	js_call(J, 3);
+	js_rot2pop1(J);
+	json = js_tostring(J, -1);
+
+	fz_try(ctx)
+	{
+		out = fz_new_output_with_path(ctx, get_history_filename(), 0);
+		fz_write_string(ctx, out, json);
+		fz_write_byte(ctx, out, '\n');
+		fz_close_output(ctx, out);
+	}
+	fz_always(ctx)
+		fz_drop_output(ctx, out);
+	fz_catch(ctx)
+		fz_warn(ctx, "Can't write history file.");
+
+	js_freestate(J);
+}
 
 static int search_active = 0;
 static struct input search_input = { { 0 }, 0 };
@@ -152,7 +366,7 @@ static void error_dialog(void)
 	ui_label("%C %s", 0x1f4a3, error_message); /* BOMB */
 	ui_layout(B, NONE, S, 2, 2);
 	if (ui_button("Quit") || ui.key == KEY_ENTER || ui.key == KEY_ESCAPE || ui.key == 'q')
-		exit(1);
+		glutLeaveMainLoop();
 	ui_dialog_end();
 }
 void ui_show_error_dialog(const char *fmt, ...)
@@ -260,13 +474,6 @@ void render_page(void)
 		fz_gamma_pixmap(ctx, pix, 1 / 1.4f);
 	}
 
-	if (pdf)
-	{
-		pdf_annot *annot;
-		for (annot = page->annots; annot; annot = annot->next)
-			annot->has_new_ap = 0;
-	}
-
 	ui_texture_from_pixmap(&page_tex, pix);
 	fz_drop_pixmap(ctx, pix);
 }
@@ -289,6 +496,8 @@ static void restore_mark(struct mark mark)
 
 static void push_history(void)
 {
+	if (history_count > 0 && history[history_count-1].page == currentpage)
+		return;
 	if (history_count + 1 >= nelem(history))
 	{
 		memmove(history, history + 1, sizeof *history * (nelem(history) - 1));
@@ -547,44 +756,6 @@ static void do_search_hits(void)
 	glDisable(GL_BLEND);
 }
 
-static void do_forms(void)
-{
-	static int do_forms_tag = 0;
-	pdf_ui_event event;
-	fz_point p;
-
-	if (!pdf || search_active)
-		return;
-
-	p = fz_transform_point_xy(ui.x, ui.y, view_page_inv_ctm);
-
-	if (ui.down && !ui.active)
-	{
-		event.etype = PDF_EVENT_TYPE_POINTER;
-		event.event.pointer.pt = p;
-		event.event.pointer.ptype = PDF_POINTER_DOWN;
-		if (pdf_pass_event(ctx, pdf, (pdf_page*)page, &event))
-		{
-			if (pdf->focus)
-				ui.active = &do_forms_tag;
-			if (pdf_update_page(ctx, page))
-				render_page();
-		}
-	}
-	else if (ui.active == &do_forms_tag && !ui.down)
-	{
-		ui.active = NULL;
-		event.etype = PDF_EVENT_TYPE_POINTER;
-		event.event.pointer.pt = p;
-		event.event.pointer.ptype = PDF_POINTER_UP;
-		if (pdf_pass_event(ctx, pdf, (pdf_page*)page, &event))
-		{
-			if (pdf_update_page(ctx, page))
-				render_page();
-		}
-	}
-}
-
 static void toggle_fullscreen(void)
 {
 	static int win_x = 0, win_y = 0;
@@ -635,8 +806,8 @@ static void password_dialog(void)
 		ui_panel_begin(0, ui.gridsize, 0, 0, 0);
 		{
 			ui_layout(R, NONE, S, 0, 0);
-			if (ui_button("Cancel"))
-				exit(1);
+			if (ui_button("Cancel") || (!ui.focus && ui.key == KEY_ESCAPE))
+				glutLeaveMainLoop();
 			ui_spacer();
 			if (ui_button("Okay") || is == UI_INPUT_ACCEPT)
 			{
@@ -693,11 +864,13 @@ static void load_document(void)
 	}
 	anchor = NULL;
 
+	load_history();
 	currentpage = fz_clampi(currentpage, 0, fz_count_pages(ctx, doc) - 1);
 }
 
 void reload(void)
 {
+	save_history();
 	load_document();
 	if (doc)
 	{
@@ -829,6 +1002,7 @@ static void do_app(void)
 		case 'a': toggle_annotate(); break;
 		case 'o': toggle_outline(); break;
 		case 'L': showlinks = !showlinks; break;
+		case 'F': showform = !showform; break;
 		case 'i': showinfo = !showinfo; break;
 		case 'r': reload(); break;
 		case 'q': glutLeaveMainLoop(); break;
@@ -1140,7 +1314,7 @@ static void do_canvas(void)
 		}
 		else
 		{
-			do_forms();
+			do_widget_canvas(area);
 			do_links(links);
 			do_page_selection();
 		}
@@ -1302,8 +1476,9 @@ static void do_open_document_dialog(void)
 	{
 		ui.dialog = NULL;
 		if (filename[0] == 0)
-			exit(0);
-		load_document();
+			glutLeaveMainLoop();
+		else
+			load_document();
 		if (doc)
 		{
 			load_page();
@@ -1312,6 +1487,25 @@ static void do_open_document_dialog(void)
 			update_title();
 		}
 	}
+}
+
+static void cleanup(void)
+{
+	save_history();
+
+	ui_finish();
+
+#ifndef NDEBUG
+	if (fz_atoi(getenv("FZ_DEBUG_STORE")))
+		fz_debug_store(ctx);
+#endif
+
+	fz_drop_stext_page(ctx, page_text);
+	fz_drop_link(ctx, links);
+	fz_drop_page(ctx, fzpage);
+	fz_drop_outline(ctx, outline);
+	fz_drop_document(ctx, doc);
+	fz_drop_context(ctx);
 }
 
 #ifdef _MSC_VER
@@ -1402,19 +1596,7 @@ int main(int argc, char **argv)
 
 	glutMainLoop();
 
-	ui_finish();
-
-#ifndef NDEBUG
-	if (fz_atoi(getenv("FZ_DEBUG_STORE")))
-		fz_debug_store(ctx);
-#endif
-
-	fz_drop_stext_page(ctx, page_text);
-	fz_drop_link(ctx, links);
-	fz_drop_page(ctx, fzpage);
-	fz_drop_outline(ctx, outline);
-	fz_drop_document(ctx, doc);
-	fz_drop_context(ctx);
+	cleanup();
 
 	return 0;
 }

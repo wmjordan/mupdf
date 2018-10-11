@@ -13,6 +13,8 @@
 /* #define DEBUG_HEAP_SORT */
 /* #define DEBUG_WRITING */
 
+#define SIG_EXTRAS_SIZE (1024)
+
 typedef struct pdf_write_state_s pdf_write_state;
 
 /*
@@ -2177,6 +2179,8 @@ static void writexrefstream(fz_context *ctx, pdf_document *doc, pdf_write_state 
 	{
 		fz_rethrow(ctx);
 	}
+
+	doc->has_old_style_xrefs = 0;
 }
 
 static void
@@ -2625,12 +2629,14 @@ static void presize_unsaved_signature_byteranges(fz_context *ctx, pdf_document *
 static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_state *opts)
 {
 	pdf_unsaved_sig *usig;
-	char buf[5120];
+	char *buf = NULL;
+	int buf_size;
 	int s;
 	int i;
 	int last_end;
 	fz_stream *stm = NULL;
 	fz_var(stm);
+	fz_var(buf);
 
 	fz_try(ctx)
 	{
@@ -2641,6 +2647,18 @@ static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_st
 			if (xref->unsaved_sigs)
 			{
 				pdf_obj *byte_range;
+				buf_size = 0;
+
+				for (usig = xref->unsaved_sigs; usig; usig = usig->next)
+				{
+					int size = usig->signer->max_digest_size(usig->signer);
+
+					buf_size = fz_maxi(buf_size, size);
+				}
+
+				buf_size = buf_size * 2 + SIG_EXTRAS_SIZE;
+
+				buf = fz_calloc(ctx, buf_size, 1);
 
 				stm = fz_stream_from_output(ctx, opts->out);
 				/* Locate the byte ranges and contents in the saved file */
@@ -2649,8 +2667,8 @@ static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_st
 					char *bstr, *cstr, *fstr;
 					int pnum = pdf_obj_parent_num(ctx, pdf_dict_getl(ctx, usig->field, PDF_NAME(V), PDF_NAME(ByteRange), NULL));
 					fz_seek(ctx, stm, opts->ofs_list[pnum], SEEK_SET);
-					(void)fz_read(ctx, stm, (unsigned char *)buf, sizeof(buf));
-					buf[sizeof(buf)-1] = 0;
+					(void)fz_read(ctx, stm, (unsigned char *)buf, buf_size);
+					buf[buf_size-1] = 0;
 
 					bstr = strstr(buf, "/ByteRange");
 					cstr = strstr(buf, "/Contents");
@@ -2688,8 +2706,8 @@ static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_st
 					pdf_dict_putl_drop(ctx, usig->field, pdf_copy_array(ctx, byte_range), PDF_NAME(V), PDF_NAME(ByteRange), NULL);
 
 				/* Write the byte range into buf, padding with spaces*/
-				i = pdf_sprint_obj(ctx, buf, sizeof(buf), byte_range, 1);
-				memset(buf+i, ' ', sizeof(buf)-i);
+				i = pdf_sprint_obj(ctx, buf, buf_size, byte_range, 1);
+				memset(buf+i, ' ', buf_size-i);
 
 				/* Write the byte range to the file */
 				for (usig = xref->unsaved_sigs; usig; usig = usig->next)
@@ -2710,12 +2728,18 @@ static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_st
 					usig->signer->drop(usig->signer);
 					fz_free(ctx, usig);
 				}
+
+				xref->unsaved_sigs_end = NULL;
+
+				fz_free(ctx, buf);
+				buf = NULL;
 			}
 		}
 	}
 	fz_catch(ctx)
 	{
 		fz_drop_stream(ctx, stm);
+		fz_free(ctx, buf);
 		fz_rethrow(ctx);
 	}
 }
@@ -2863,6 +2887,9 @@ int pdf_can_be_saved_incrementally(fz_context *ctx, pdf_document *doc)
 		return 0;
 	if (doc->crypt != NULL)
 		return 0;
+	if (doc->has_xref_streams && doc->has_old_style_xrefs)
+		return 0;
+
 	return 1;
 }
 

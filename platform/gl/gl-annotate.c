@@ -15,8 +15,8 @@ static pdf_write_options save_opts;
 
 static int pdf_filter(const char *fn)
 {
-	const char *suffix = strrchr(fn, '.');
-	if (suffix && !fz_strcasecmp(suffix, ".pdf"))
+	const char *extension = strrchr(fn, '.');
+	if (extension && !fz_strcasecmp(extension, ".pdf"))
 		return 1;
 	return 0;
 }
@@ -115,6 +115,8 @@ static void new_annot(int type)
 	case PDF_ANNOT_SOUND:
 		{
 			fz_rect icon_rect = { 12, 12, 12+20, 12+20 };
+			pdf_set_annot_flags(ctx, selected_annot,
+				PDF_ANNOT_IS_PRINT | PDF_ANNOT_IS_NO_ZOOM | PDF_ANNOT_IS_NO_ROTATE);
 			pdf_set_annot_rect(ctx, selected_annot, icon_rect);
 			pdf_set_annot_color(ctx, selected_annot, 3, yellow);
 		}
@@ -459,7 +461,8 @@ void do_annotate_panel(void)
 
 	n = 0;
 	for (annot = pdf_first_annot(ctx, page); annot; annot = pdf_next_annot(ctx, annot))
-		++n;
+		if (pdf_annot_type(ctx, annot) != PDF_ANNOT_WIDGET)
+			++n;
 
 	ui_list_begin(&annot_list, n, 0, ui.lineheight * 10 + 4);
 	for (annot = pdf_first_annot(ctx, page); annot; annot = pdf_next_annot(ctx, annot))
@@ -467,15 +470,12 @@ void do_annotate_panel(void)
 		char buf[256];
 		int num = pdf_to_num(ctx, annot->obj);
 		enum pdf_annot_type subtype = pdf_annot_type(ctx, annot);
-		if (subtype == PDF_ANNOT_WIDGET)
+		if (subtype != PDF_ANNOT_WIDGET)
 		{
-			pdf_obj *ft = pdf_dict_get_inheritable(ctx, annot->obj, PDF_NAME(FT));
-			fz_snprintf(buf, sizeof buf, "%d: Widget %s", num, pdf_to_name(ctx, ft));
-		}
-		else
 			fz_snprintf(buf, sizeof buf, "%d: %s", num, pdf_string_from_annot_type(ctx, subtype));
-		if (ui_list_item(&annot_list, annot->obj, buf, selected_annot == annot))
-			selected_annot = annot;
+			if (ui_list_item(&annot_list, annot->obj, buf, selected_annot == annot))
+				selected_annot = annot;
+		}
 	}
 	ui_list_end(&annot_list);
 
@@ -513,10 +513,7 @@ void do_annotate_panel(void)
 
 		ui_spacer();
 
-		if (subtype == PDF_ANNOT_WIDGET)
-			do_widget_panel();
-		else
-			do_annotate_contents();
+		do_annotate_contents();
 
 		ui_spacer();
 
@@ -611,7 +608,7 @@ void do_annotate_panel(void)
 			static int border;
 			border = pdf_annot_border(ctx, selected_annot);
 			ui_label("Border: %d", border);
-			if (ui_slider(&border, 0, 10, 100))
+			if (ui_slider(&border, 0, 12, 100))
 				pdf_set_annot_border(ctx, selected_annot, border);
 		}
 
@@ -721,10 +718,14 @@ static void do_edit_icon(fz_irect canvas_area, fz_irect area, fz_rect *rect)
 		/* Commit movement on mouse-up */
 		if (!ui.down)
 		{
+			fz_point dp = { rect->x0 - start_pt.x, rect->y0 - start_pt.y };
 			moving = 0;
-			if (fz_abs(start_pt.x - rect->x0) > 0.1f || fz_abs(start_pt.x - rect->y0) > 0.1f)
+			if (fz_abs(dp.x) > 0.1f || fz_abs(dp.y) > 0.1f)
 			{
-				fz_rect trect = fz_transform_rect(*rect, view_page_inv_ctm);
+				fz_rect trect = pdf_annot_rect(ctx, selected_annot);
+				dp = fz_transform_vector(dp, view_page_inv_ctm);
+				trect.x0 += dp.x; trect.x1 += dp.x;
+				trect.y0 += dp.y; trect.y1 += dp.y;
 				pdf_set_annot_rect(ctx, selected_annot, trect);
 			}
 		}
@@ -1056,6 +1057,10 @@ void do_annotate_canvas(fz_irect canvas_area)
 
 	for (annot = pdf_first_annot(ctx, page); annot; annot = pdf_next_annot(ctx, annot))
 	{
+		enum pdf_annot_type subtype = pdf_annot_type(ctx, annot);
+		if (subtype == PDF_ANNOT_WIDGET)
+			continue;
+
 		bounds = pdf_bound_annot(ctx, annot);
 		bounds = fz_transform_rect(bounds, view_page_ctm);
 		area = fz_irect_from_rect(bounds);
@@ -1072,7 +1077,7 @@ void do_annotate_canvas(fz_irect canvas_area)
 
 		if (annot == selected_annot)
 		{
-			switch (pdf_annot_type(ctx, selected_annot))
+			switch (subtype)
 			{
 			default:
 				break;

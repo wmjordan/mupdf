@@ -938,17 +938,17 @@ write_variable_text(fz_context *ctx, pdf_annot *annot, fz_buffer *buf, pdf_obj *
 		fz_append_string(ctx, buf, "BT\n");
 		fz_append_printf(ctx, buf, "%g %g %g rg\n", color[0], color[1], color[2]);
 		fz_append_printf(ctx, buf, "/%s %g Tf\n", fontname, size);
-		if (comb > 0)
+		if (multiline)
+		{
+			fz_append_printf(ctx, buf, "%g TL\n", lineheight);
+			fz_append_printf(ctx, buf, "%g %g Td\n", xpadding, ypadding+h);
+			write_simple_string_with_quadding(ctx, buf, font, size, text, w, q);
+		}
+		else if (comb > 0)
 		{
 			float ty = (h - size) / 2;
 			fz_append_printf(ctx, buf, "%g %g Td\n", xpadding, ypadding+h-baseline-ty);
 			write_comb_string(ctx, buf, text, text + strlen(text), font, (w * 1000 / size) / comb);
-		}
-		else if (multiline)
-		{
-			fz_append_printf(ctx, buf, "%g TL\n", lineheight);
-			fz_append_printf(ctx, buf, "%g %g Td\n", xpadding, ypadding+h+(size-baseline));
-			write_simple_string_with_quadding(ctx, buf, font, size, text, w, q);
 		}
 		else
 		{
@@ -1045,15 +1045,15 @@ pdf_write_tx_widget_appearance(fz_context *ctx, pdf_annot *annot, fz_buffer *buf
 			b = 0;
 	}
 
-	if (ff & Ff_Comb)
+	if (ff & PDF_TX_FIELD_IS_MULTILINE)
+		write_variable_text(ctx, annot, buf, res, text, font, size, color, q, w, h, b+2, b+3, 1, 0);
+	else if (ff & PDF_TX_FIELD_IS_COMB)
 	{
 		int maxlen = pdf_to_int(ctx, pdf_dict_get_inheritable(ctx, annot->obj, PDF_NAME(MaxLen)));
 		write_variable_text(ctx, annot, buf, res, text, font, size, color, q, w, h, 0, 0, 0, maxlen);
 	}
-	else if (ff & Ff_Multiline)
-		write_variable_text(ctx, annot, buf, res, text, font, size, color, q, w, h, b*2+2, b*2, 1, 0);
 	else
-		write_variable_text(ctx, annot, buf, res, text, font, size, color, q, w, h, b*2+2, b*2, 0, 0);
+		write_variable_text(ctx, annot, buf, res, text, font, size, color, q, w, h, b+2, b, 0, 0);
 
 	fz_append_string(ctx, buf, "Q\nEMC\n");
 }
@@ -1282,6 +1282,7 @@ void pdf_update_signature_appearance(fz_context *ctx, pdf_annot *annot, const ch
 		fz_drop_font(ctx, helv);
 		fz_drop_font(ctx, zadb);
 		pdf_drop_obj(ctx, res);
+		fz_drop_buffer(ctx, buf);
 	}
 	fz_catch(ctx)
 	{
@@ -1319,7 +1320,7 @@ void pdf_update_appearance(fz_context *ctx, pdf_annot *annot)
 	{
 		fz_rect rect, bbox;
 		fz_matrix matrix = fz_identity;
-		fz_buffer *buf = fz_new_buffer(ctx, 1024);
+		fz_buffer *buf;
 		pdf_obj *res = NULL;
 		pdf_obj *new_ap_n = NULL;
 		fz_var(res);
@@ -1332,6 +1333,7 @@ void pdf_update_appearance(fz_context *ctx, pdf_annot *annot)
 			if (pdf_name_eq(ctx, pdf_dict_get_inheritable(ctx, annot->obj, PDF_NAME(FT)), PDF_NAME(Btn)))
 				return;
 
+		buf = fz_new_buffer(ctx, 1024);
 		fz_try(ctx)
 		{
 			rect = pdf_dict_get_rect(ctx, annot->obj, PDF_NAME(Rect));
@@ -1372,11 +1374,12 @@ void pdf_update_appearance(fz_context *ctx, pdf_annot *annot)
 	}
 }
 
-void
+int
 pdf_update_annot(fz_context *ctx, pdf_annot *annot)
 {
 	pdf_document *doc = annot->page->doc;
 	pdf_obj *obj, *ap, *as, *n;
+	int changed = 0;
 
 	/* TODO: handle form field updates without using the annot pdf_obj dirty flag */
 	obj = annot->obj;
@@ -1414,4 +1417,8 @@ pdf_update_annot(fz_context *ctx, pdf_annot *annot)
 			annot->has_new_ap = 1;
 		}
 	}
+
+	changed = annot->has_new_ap;
+	annot->has_new_ap = 0;
+	return changed;
 }

@@ -375,7 +375,9 @@ void ui_init(int w, int h, const char *title)
 {
 	float ui_scale;
 
+#ifdef FREEGLUT
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
+#endif
 
 	glutInitErrorFunc(on_error);
 	glutInitWarningFunc(on_warning);
@@ -422,7 +424,7 @@ void ui_init(int w, int h, const char *title)
 	ui.lineheight = DEFAULT_UI_LINEHEIGHT * ui_scale;
 	ui.gridsize = DEFAULT_UI_GRIDSIZE * ui_scale;
 
-	ui_init_fonts(ui.fontsize);
+	ui_init_fonts();
 
 	ui.overlay_list = glGenLists(1);
 }

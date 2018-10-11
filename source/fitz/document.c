@@ -124,7 +124,7 @@ fz_recognize_document(fz_context *ctx, const char *magic)
 	return dc->handler[best_i];
 }
 
-#ifdef FZ_ENABLE_PDF
+#if FZ_ENABLE_PDF
 extern fz_document_handler pdf_document_handler;
 #endif
 
@@ -138,7 +138,7 @@ fz_open_document_with_stream(fz_context *ctx, const char *magic, fz_stream *stre
 
 	handler = fz_recognize_document(ctx, magic);
 	if (!handler)
-#ifdef FZ_ENABLE_PDF
+#if FZ_ENABLE_PDF
 		handler = &pdf_document_handler;
 #else
 		fz_throw(ctx, FZ_ERROR_GENERIC, "cannot find document handler for file type: %s", magic);
@@ -159,7 +159,7 @@ fz_open_document(fz_context *ctx, const char *filename)
 
 	handler = fz_recognize_document(ctx, filename);
 	if (!handler)
-#ifdef FZ_ENABLE_PDF
+#if FZ_ENABLE_PDF
 		handler = &pdf_document_handler;
 #else
 		fz_throw(ctx, FZ_ERROR_GENERIC, "cannot find document handler for file: %s", filename);
@@ -319,9 +319,27 @@ fz_document_output_intent(fz_context *ctx, fz_document *doc)
 fz_page *
 fz_load_page(fz_context *ctx, fz_document *doc, int number)
 {
+	fz_page *page;
+
 	fz_ensure_layout(ctx, doc);
+
+	for (page = doc->open; page; page = page->next)
+		if (page->number == number)
+			return fz_keep_page(ctx, page);
+
 	if (doc && doc->load_page)
-		return doc->load_page(ctx, doc, number);
+	{
+		page = doc->load_page(ctx, doc, number);
+		page->number = number;
+
+		/* Insert new page at the head of the list of open pages. */
+		if ((page->next = doc->open) != NULL)
+			doc->open->prev = &page->next;
+		doc->open = page;
+		page->prev = &doc->open;
+		return page;
+	}
+
 	return NULL;
 }
 
@@ -472,8 +490,15 @@ fz_drop_page(fz_context *ctx, fz_page *page)
 {
 	if (fz_drop_imp(ctx, page, &page->refs))
 	{
+		/* Remove page from the list of open pages */
+		if (page->next != NULL)
+			page->next->prev = page->prev;
+		if (page->prev != NULL)
+			*page->prev = page->next;
+
 		if (page->drop_page)
 			page->drop_page(ctx, page);
+
 		fz_free(ctx, page);
 	}
 }

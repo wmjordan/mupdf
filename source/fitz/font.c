@@ -230,7 +230,7 @@ struct fz_font_context_s
 
 	/* Cached fallback fonts */
 	fz_font *base14[14];
-	fz_font *cjk[8];
+	fz_font *cjk[4];
 	struct { fz_font *serif, *sans; } fallback[256];
 	fz_font *symbol1, *symbol2;
 	fz_font *emoji;
@@ -416,7 +416,7 @@ fz_font *fz_load_fallback_font(fz_context *ctx, int script, int language, int se
 		*fontp = fz_load_system_fallback_font(ctx, script, language, serif, bold, italic);
 		if (!*fontp)
 		{
-			data = fz_lookup_noto_font(ctx, script, language, serif, &size, &subfont);
+			data = fz_lookup_noto_font(ctx, script, language, &size, &subfont);
 			if (data)
 				*fontp = fz_new_font_from_memory(ctx, NULL, data, size, subfont, 0);
 		}
@@ -697,20 +697,19 @@ fz_new_base14_font(fz_context *ctx, const char *name)
 }
 
 fz_font *
-fz_new_cjk_font(fz_context *ctx, int ordering, int serif)
+fz_new_cjk_font(fz_context *ctx, int ordering)
 {
 	const unsigned char *data;
 	int size, index;
-	int x = (ordering * 2) + !!serif;
-	if (x >= 0 && x < nelem(ctx->font->cjk))
+	if (ordering >= 0 && ordering < nelem(ctx->font->cjk))
 	{
-		if (ctx->font->cjk[x])
-			return fz_keep_font(ctx, ctx->font->cjk[x]);
-		data = fz_lookup_cjk_font(ctx, ordering, serif, &size, &index);
+		if (ctx->font->cjk[ordering])
+			return fz_keep_font(ctx, ctx->font->cjk[ordering]);
+		data = fz_lookup_cjk_font(ctx, ordering, &size, &index);
 		if (data)
 		{
-			ctx->font->cjk[x] = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
-			return fz_keep_font(ctx, ctx->font->cjk[x]);
+			ctx->font->cjk[ordering] = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+			return fz_keep_font(ctx, ctx->font->cjk[ordering]);
 		}
 	}
 	fz_throw(ctx, FZ_ERROR_GENERIC, "cannot find builtin CJK font");
@@ -1325,7 +1324,7 @@ fz_bound_t3_glyph(fz_context *ctx, fz_font *font, int gid)
 }
 
 void
-fz_prepare_t3_glyph(fz_context *ctx, fz_font *font, int gid, int nested_depth)
+fz_prepare_t3_glyph(fz_context *ctx, fz_font *font, int gid)
 {
 	fz_buffer *contents;
 	fz_device *dev;
@@ -1351,7 +1350,7 @@ fz_prepare_t3_glyph(fz_context *ctx, fz_font *font, int gid, int nested_depth)
 			FZ_DEVFLAG_LINEWIDTH_UNDEFINED;
 	fz_try(ctx)
 	{
-		font->t3run(ctx, font->t3doc, font->t3resources, contents, dev, fz_identity, NULL, 0, NULL);
+		font->t3run(ctx, font->t3doc, font->t3resources, contents, dev, fz_identity, NULL, NULL);
 		fz_close_device(ctx, dev);
 		font->t3flags[gid] = dev->flags;
 		d1_rect = dev->d1_rect;
@@ -1492,7 +1491,7 @@ fz_render_t3_glyph(fz_context *ctx, fz_font *font, int gid, fz_matrix trm, fz_co
 }
 
 void
-fz_render_t3_glyph_direct(fz_context *ctx, fz_device *dev, fz_font *font, int gid, fz_matrix trm, void *gstate, int nested_depth, fz_default_colorspaces *def_cs)
+fz_render_t3_glyph_direct(fz_context *ctx, fz_device *dev, fz_font *font, int gid, fz_matrix trm, void *gstate, fz_default_colorspaces *def_cs)
 {
 	fz_matrix ctm;
 	void *contents;
@@ -1518,7 +1517,7 @@ fz_render_t3_glyph_direct(fz_context *ctx, fz_device *dev, fz_font *font, int gi
 	}
 
 	ctm = fz_concat(font->t3matrix, trm);
-	font->t3run(ctx, font->t3doc, font->t3resources, contents, dev, ctm, gstate, nested_depth, def_cs);
+	font->t3run(ctx, font->t3doc, font->t3resources, contents, dev, ctm, gstate, def_cs);
 }
 
 fz_rect

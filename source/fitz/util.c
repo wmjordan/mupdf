@@ -8,6 +8,8 @@ fz_new_display_list_from_page(fz_context *ctx, fz_page *page)
 	fz_display_list *list;
 	fz_device *dev = NULL;
 
+	fz_var(dev);
+
 	list = fz_new_display_list(ctx, fz_bound_page(ctx, page));
 	fz_try(ctx)
 	{
@@ -77,6 +79,8 @@ fz_new_display_list_from_annot(fz_context *ctx, fz_annot *annot)
 	fz_display_list *list;
 	fz_device *dev = NULL;
 
+	fz_var(dev);
+
 	list = fz_new_display_list(ctx, fz_bound_annot(ctx, annot));
 
 	fz_try(ctx)
@@ -105,6 +109,8 @@ fz_new_pixmap_from_display_list(fz_context *ctx, fz_display_list *list, fz_matri
 	fz_irect bbox;
 	fz_pixmap *pix;
 	fz_device *dev = NULL;
+
+	fz_var(dev);
 
 	rect = fz_bound_display_list(ctx, list);
 	rect = fz_transform_rect(rect, ctm);
@@ -143,6 +149,8 @@ fz_new_pixmap_from_page_contents(fz_context *ctx, fz_page *page, fz_matrix ctm, 
 	fz_pixmap *pix;
 	fz_device *dev = NULL;
 
+	fz_var(dev);
+
 	rect = fz_bound_page(ctx, page);
 	rect = fz_transform_rect(rect, ctm);
 	bbox = fz_round_rect(rect);
@@ -179,6 +187,8 @@ fz_new_pixmap_from_annot(fz_context *ctx, fz_annot *annot, fz_matrix ctm, fz_col
 	fz_irect bbox;
 	fz_pixmap *pix;
 	fz_device *dev = NULL;
+
+	fz_var(dev);
 
 	rect = fz_bound_annot(ctx, annot);
 	rect = fz_transform_rect(rect, ctm);
@@ -217,18 +227,21 @@ fz_new_pixmap_from_page(fz_context *ctx, fz_page *page, fz_matrix ctm, fz_colors
 	fz_pixmap *pix;
 	fz_device *dev = NULL;
 
+	fz_var(dev);
+
 	rect = fz_bound_page(ctx, page);
 	rect = fz_transform_rect(rect, ctm);
 	bbox = fz_round_rect(rect);
 
 	pix = fz_new_pixmap_with_bbox(ctx, cs, bbox, 0, alpha);
-	if (alpha)
-		fz_clear_pixmap(ctx, pix);
-	else
-		fz_clear_pixmap_with_value(ctx, pix, 0xFF);
 
 	fz_try(ctx)
 	{
+		if (alpha)
+			fz_clear_pixmap(ctx, pix);
+		else
+			fz_clear_pixmap_with_value(ctx, pix, 0xFF);
+
 		dev = fz_new_draw_device(ctx, ctm, pix);
 		fz_run_page(ctx, page, dev, fz_identity, NULL);
 		fz_close_device(ctx, dev);
@@ -268,6 +281,8 @@ fz_new_stext_page_from_display_list(fz_context *ctx, fz_display_list *list, cons
 	fz_stext_page *text;
 	fz_device *dev = NULL;
 
+	fz_var(dev);
+
 	if (list == NULL)
 		return NULL;
 
@@ -296,6 +311,8 @@ fz_new_stext_page_from_page(fz_context *ctx, fz_page *page, const fz_stext_optio
 {
 	fz_stext_page *text;
 	fz_device *dev = NULL;
+
+	fz_var(dev);
 
 	if (page == NULL)
 		return NULL;
@@ -333,6 +350,37 @@ fz_new_stext_page_from_page_number(fz_context *ctx, fz_document *doc, int number
 		fz_drop_page(ctx, page);
 	fz_catch(ctx)
 		fz_rethrow(ctx);
+	return text;
+}
+
+fz_stext_page *
+fz_new_stext_page_from_annot(fz_context *ctx, fz_annot *annot, const fz_stext_options *options)
+{
+	fz_stext_page *text;
+	fz_device *dev = NULL;
+
+	fz_var(dev);
+
+	if (annot == NULL)
+		return NULL;
+
+	text = fz_new_stext_page(ctx, fz_bound_annot(ctx, annot));
+	fz_try(ctx)
+	{
+		dev = fz_new_stext_device(ctx, text, options);
+		fz_run_annot(ctx, annot, dev, fz_identity, NULL);
+		fz_close_device(ctx, dev);
+	}
+	fz_always(ctx)
+	{
+		fz_drop_device(ctx, dev);
+	}
+	fz_catch(ctx)
+	{
+		fz_drop_stext_page(ctx, text);
+		fz_rethrow(ctx);
+	}
+
 	return text;
 }
 
