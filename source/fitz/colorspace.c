@@ -835,7 +835,6 @@ void fz_set_cmm_engine(fz_context *ctx, const fz_cmm_engine *engine)
 	if (cct->cmm == engine)
 		return;
 
-	fz_drop_cmm_context(ctx);
 	fz_drop_colorspace(ctx, cct->gray);
 	fz_drop_colorspace(ctx, cct->rgb);
 	fz_drop_colorspace(ctx, cct->bgr);
@@ -846,15 +845,36 @@ void fz_set_cmm_engine(fz_context *ctx, const fz_cmm_engine *engine)
 	cct->bgr = NULL;
 	cct->cmyk = NULL;
 	cct->lab = NULL;
+
+	fz_drop_cmm_context(ctx);
+
 	cct->cmm = engine;
+
 	fz_new_cmm_context(ctx);
+
 	if (engine)
 	{
-		cct->gray = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_GRAY, NULL);
-		cct->rgb = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_RGB, NULL);
-		cct->bgr = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_BGR, NULL);
-		cct->cmyk = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_CMYK, NULL);
-		cct->lab = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_LAB, NULL);
+		fz_try(ctx)
+		{
+			cct->gray = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_GRAY, NULL);
+			cct->rgb = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_RGB, NULL);
+			cct->bgr = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_BGR, NULL);
+			cct->cmyk = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_CMYK, NULL);
+			cct->lab = fz_new_icc_colorspace(ctx, FZ_COLORSPACE_LAB, NULL);
+		}
+		fz_catch(ctx)
+		{
+			fz_drop_colorspace(ctx, cct->gray);
+			fz_drop_colorspace(ctx, cct->rgb);
+			fz_drop_colorspace(ctx, cct->bgr);
+			fz_drop_colorspace(ctx, cct->cmyk);
+			fz_drop_colorspace(ctx, cct->lab);
+			fz_drop_cmm_context(ctx);
+			cct->cmm = NULL;
+			fz_new_cmm_context(ctx);
+			set_no_icc(cct);
+			fz_rethrow(ctx);
+		}
 	}
 	else
 		set_no_icc(cct);
@@ -3855,6 +3875,7 @@ fz_new_icc_colorspace(fz_context *ctx, enum fz_colorspace_type type, fz_buffer *
 		fz_drop_buffer(ctx, profile->buffer);
 		fz_cmm_fin_profile(ctx, profile);
 		fz_free(ctx, profile);
+		fz_rethrow(ctx);
 	}
 	return cs;
 #endif
