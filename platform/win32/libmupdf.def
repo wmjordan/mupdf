@@ -299,9 +299,9 @@ EXPORTS
 	fz_page_separations
 	fz_page_uses_overprint
 	fz_save_gproof
-	fz_open_null_n
-	fz_open_null
-	fz_open_pdf_stream
+	fz_open_null_filter
+	fz_open_range_filter
+	fz_open_endstream_filter
 	fz_open_concat
 	fz_concat_push_drop
 	fz_open_arc4
@@ -336,6 +336,7 @@ EXPORTS
 	fz_install_load_system_font_funcs
 	fz_load_system_font
 	fz_load_system_cjk_font
+	fz_lookup_cjk_ordering_by_language
 	fz_load_fallback_font
 	fz_new_type3_font
 	fz_new_font_from_memory
@@ -702,6 +703,7 @@ EXPORTS
 	fz_strsep
 	fz_strlcpy
 	fz_strlcat
+	fz_memmem
 	fz_dirname
 	fz_urldecode
 	fz_format_output_path
@@ -761,6 +763,7 @@ EXPORTS
 	fz_new_stext_page_from_page
 	fz_new_stext_page_from_page_number
 	fz_new_stext_page_from_display_list
+	fz_new_stext_page_from_annot
 	fz_new_buffer_from_stext_page
 	fz_new_buffer_from_page
 	fz_new_buffer_from_page_number
@@ -994,12 +997,11 @@ EXPORTS
 	pdf_save_document
 	pdf_can_be_saved_incrementally
 	pdf_access_exec_menu_item_event
-	pdf_get_string_or_stream
-	pdf_get_inheritable
 	pdf_get_field_flags
 	pdf_field_type
 	pdf_set_field_type
 	pdf_field_value
+	pdf_field_label
 	pdf_load_encoding
 	pdf_lookup_agl
 	pdf_cyrillic_from_unicode
