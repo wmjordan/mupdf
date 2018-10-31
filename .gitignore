@@ -63,5 +63,6 @@ platform/win32/Memento
 platform/win32/x64
 *.filters
 .vs
+bin
 obj
 /platform/win32/Win32/Release
