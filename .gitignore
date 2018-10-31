@@ -15,8 +15,6 @@ cscope.*
 .*.swp
 .DS_Store
 \#*\#
-bin
-obj
 
 # Editor settings:
 .vimrc
@@ -63,7 +61,7 @@ platform/win32/Release
 platform/win32/ReleaseOpenssl
 platform/win32/Memento
 platform/win32/x64
-.vs
 *.filters
-*.log
+.vs
+obj
 /platform/win32/Win32/Release

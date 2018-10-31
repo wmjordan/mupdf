@@ -11,7 +11,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <bin2coff__ttf_>
-      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" $(IntDir)%(Filename)_ttf.obj _binary_resources_fonts_%(Filename)_ttf $(Platform)</CommandLineTemplate>
+      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" "$(IntDir)%(Filename)_ttf.obj" _binary_%(Filename)_ttf $(Platform)</CommandLineTemplate>
       <Outputs>$(IntDir)%(Filename)_ttf.obj</Outputs>
       <ExecutionDescription>Embedding TTF</ExecutionDescription>
     </bin2coff__ttf_>
@@ -27,7 +27,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <bin2coff__otf_>
-      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" $(IntDir)%(Filename)_otf.obj _binary_resources_fonts_%(Filename)_otf $(Platform)</CommandLineTemplate>
+      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" "$(IntDir)%(Filename)_otf.obj" _binary_%(Filename)_otf $(Platform)</CommandLineTemplate>
       <Outputs>$(IntDir)%(Filename)_otf.obj</Outputs>
       <ExecutionDescription>Embedding OTF</ExecutionDescription>
     </bin2coff__otf_>
@@ -43,7 +43,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <bin2coff__cff_>
-      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" $(IntDir)%(Filename)_cff.obj _binary_resources_fonts_%(Filename)_cff $(Platform)</CommandLineTemplate>
+      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" "$(IntDir)%(Filename)_cff.obj" _binary_%(Filename)_cff $(Platform)</CommandLineTemplate>
       <Outputs>$(IntDir)%(Filename)_cff.obj</Outputs>
       <ExecutionDescription>Embedding CFF</ExecutionDescription>
     </bin2coff__cff_>
@@ -59,7 +59,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <bin2coff__ttc_>
-      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" $(IntDir)%(Filename)_ttc.obj _binary_resources_fonts_%(Filename)_ttc $(Platform)</CommandLineTemplate>
+      <CommandLineTemplate>Release\bin2coff.exe "%(FullPath)" "$(IntDir)%(Filename)_ttc.obj" _binary_%(Filename)_ttc $(Platform)</CommandLineTemplate>
       <Outputs>$(IntDir)%(Filename)_ttc.obj</Outputs>
       <ExecutionDescription>Embedding TTC</ExecutionDescription>
     </bin2coff__ttc_>
