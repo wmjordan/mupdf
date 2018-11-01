@@ -109,7 +109,7 @@ namespace MupdfSharp
 			Cmyk,
 			Gray
 		}
-		class NativeMethods
+		static class NativeMethods
 		{
 			const uint FZ_STORE_DEFAULT = 256 << 20;
 			const string DLL = "MuPDFLib.dll";
