@@ -6,7 +6,7 @@ using CC = System.Runtime.InteropServices.CallingConvention;
 
 namespace MupdfSharp
 {
-	class Program
+	static class Program
 	{
 		static void Main (string[] args) {
 			IntPtr ctx = NativeMethods.NewContext (); // Creates the context
@@ -109,12 +109,12 @@ namespace MupdfSharp
 			Cmyk,
 			Gray
 		}
-		class NativeMethods
+		static class NativeMethods
 		{
 			const uint FZ_STORE_DEFAULT = 256 << 20;
 			const string DLL = "MuPDFLib.dll";
-			// please modify the version number to match the FZ_VERSION definition in "fitz\version.h" file
-			const string FZ_VERSION = "1.13.0";
+			// note: modify the version number to match the FZ_VERSION definition in "fitz\version.h" file
+			const string FZ_VERSION = "1.14.0";
 
 			[DllImport(DLL, EntryPoint = "fz_new_context_imp", CallingConvention = CC.Cdecl, BestFitMapping = false)]
 			static extern IntPtr NewContext(IntPtr alloc, IntPtr locks, uint max_store, [MarshalAs(UnmanagedType.LPStr)] string fz_version);
