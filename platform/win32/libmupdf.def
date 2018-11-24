@@ -59,6 +59,7 @@ EXPORTS
 	fz_resize_buffer
 	fz_grow_buffer
 	fz_trim_buffer
+	fz_clear_buffer
 	fz_append_buffer
 	fz_append_data
 	fz_append_string
@@ -117,6 +118,8 @@ EXPORTS
 	fz_colorspace_name
 	fz_clamp_color
 	fz_convert_color
+	fz_unmultiply_row
+	fz_premultiply_row
 	fz_find_color_converter
 	fz_drop_color_converter
 	fz_init_cached_color_converter
@@ -151,6 +154,9 @@ EXPORTS
 
 	fz_var_imp
 	fz_push_try
+	fz_do_try
+	fz_do_always
+	fz_do_catch
 	fz_vthrow
 	fz_throw
 	fz_rethrow
@@ -323,6 +329,12 @@ EXPORTS
 	fz_open_sgilog24
 	fz_open_sgilog32
 	fz_open_thunder
+	fz_iso8859_1_from_unicode
+	fz_iso8859_7_from_unicode
+	fz_koi8u_from_unicode
+	fz_windows_1250_from_unicode
+	fz_windows_1251_from_unicode
+	fz_windows_1252_from_unicode
 	fz_font_ft_face
 	ft_error_string
 	fz_font_flags
@@ -509,9 +521,6 @@ EXPORTS
 	fz_new_psd_band_writer
 
 
-	fz_save_pixmap_as_tga
-	fz_write_pixmap_as_tga
-	fz_new_tga_band_writer
 	fz_new_output
 	fz_new_output_with_path
 	fz_new_output_with_buffer
@@ -618,6 +627,7 @@ EXPORTS
 	fz_decode_indexed_tile
 	fz_unpack_tile
 	fz_lookup_pixmap_converter
+	fz_convert_pixmap_samples
 	fz_md5_pixmap
 	fz_new_pixmap_from_8bpp_data
 	fz_new_pixmap_from_1bpp_data
@@ -709,6 +719,7 @@ EXPORTS
 	fz_format_output_path
 	fz_cleanname
 	fz_strcasecmp
+	fz_strncasecmp
 	fz_chartorune
 	fz_runetochar
 	fz_runelen
@@ -774,6 +785,7 @@ EXPORTS
 	fz_new_display_list_from_svg
 	fz_new_image_from_svg
 	fz_write_image_as_data_uri
+	fz_write_pixmap_as_data_uri
 
 	fz_new_document_writer_of_size
 	fz_has_option
@@ -785,7 +797,6 @@ EXPORTS
 	fz_new_ps_writer
 	fz_new_cbz_writer
 	fz_new_png_pixmap_writer
-	fz_new_tga_pixmap_writer
 	fz_new_pam_pixmap_writer
 	fz_new_pnm_pixmap_writer
 	fz_new_pgm_pixmap_writer
@@ -838,6 +849,7 @@ EXPORTS
 	pdf_annot_transform
 	pdf_load_annots
 	pdf_drop_annots
+	pdf_create_annot_raw
 	pdf_create_annot
 	pdf_delete_annot
 	pdf_annot_has_ink_list
@@ -965,20 +977,6 @@ EXPORTS
 	pdf_toggle_layer_config_ui
 	pdf_layer_config_ui_info
 	pdf_set_layer_config_as_default
-	pdf_count_portfolio_schema
-	pdf_portfolio_schema_info
-	pdf_reorder_portfolio_schema
-	pdf_rename_portfolio_schema
-	pdf_delete_portfolio_schema
-	pdf_add_portfolio_schema
-	pdf_count_portfolio_entries
-	pdf_portfolio_entry
-	pdf_portfolio_entry_obj_name
-	pdf_portfolio_entry_obj
-	pdf_portfolio_entry_name
-	pdf_portfolio_entry_info
-	pdf_add_portfolio_entry
-	pdf_set_portfolio_entry_info
 	pdf_create_document
 	pdf_graft_object
 	pdf_new_graft_map
@@ -1004,9 +1002,6 @@ EXPORTS
 	pdf_field_label
 	pdf_load_encoding
 	pdf_lookup_agl
-	pdf_cyrillic_from_unicode
-	pdf_greek_from_unicode
-	pdf_winansi_from_unicode
 	pdf_set_font_wmode
 	pdf_set_default_hmtx
 	pdf_set_default_vmtx
@@ -1177,7 +1172,6 @@ EXPORTS
 	pdf_obj_refs
 	pdf_obj_parent_num
 	pdf_sprint_obj
-	pdf_sprint_encrypted_obj
 	pdf_print_obj
 	pdf_print_encrypted_obj
 	pdf_debug_obj
