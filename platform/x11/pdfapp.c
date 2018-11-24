@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifndef _WIN32
+#include <unistd.h> /* for getcwd */
+#endif
+
 #define BEYOND_THRESHHOLD 40
 
 #ifndef PATH_MAX
@@ -34,7 +38,11 @@ enum
 static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repaint, int transition, int searching);
 static void pdfapp_updatepage(pdfapp_t *app);
 
-static const int zoomlist[] = { 18, 24, 36, 54, 72, 96, 120, 144, 180, 216, 288 };
+static const int zoomlist[] = {
+	18, 24, 36, 54, 72, 96, 120, 144, 180,
+	216, 288, 360, 432, 504, 576, 648, 720,
+	792, 864, 936, 1008, 1080, 1152
+};
 
 static int zoom_in(int oldres)
 {
@@ -91,6 +99,7 @@ char *pdfapp_usage(pdfapp_t *app)
 		"W\t\t-- zoom to fit window width\n"
 		"H\t\t-- zoom to fit window height\n"
 		"Z\t\t-- zoom to fit page\n"
+		"z\t\t-- reset zoom\n"
 		"[\t\t-- decrease font size (EPUB only)\n"
 		"]\t\t-- increase font size (EPUB only)\n"
 		"w\t\t-- shrinkwrap\n"
@@ -144,6 +153,7 @@ void pdfapp_init(fz_context *ctx, pdfapp_t *app)
 
 void pdfapp_setresolution(pdfapp_t *app, int res)
 {
+	app->default_resolution = res;
 	app->resolution = res;
 }
 
@@ -877,7 +887,7 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 		char buf2[64];
 		size_t len;
 
-		sprintf(buf2, " - %d/%d (%d dpi)",
+		sprintf(buf2, " - %d/%d (%g dpi)",
 				app->pageno, app->pagecount, app->resolution);
 		len = MAX_TITLE-strlen(buf2);
 		if (strlen(app->doctitle) > len)
@@ -991,6 +1001,20 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 
 static void pdfapp_gotouri(pdfapp_t *app, char *uri)
 {
+	char buf[PATH_MAX];
+
+	/* Relative file:// URI, make it absolute! */
+	if (!strncmp(uri, "file://", 7) && uri[7] != '/')
+	{
+		char buf_base[PATH_MAX];
+		char buf_cwd[PATH_MAX];
+		fz_dirname(buf_base, app->docpath, sizeof buf_base);
+		getcwd(buf_cwd, sizeof buf_cwd);
+		fz_snprintf(buf, sizeof buf, "file://%s/%s/%s", buf_cwd, buf_base, uri+7);
+		fz_cleanname(buf+7);
+		uri = buf;
+	}
+
 	winopenuri(app, uri);
 }
 
@@ -1243,6 +1267,10 @@ void pdfapp_onkey(pdfapp_t *app, int c, int modifiers)
 		break;
 	case 'Z':
 		pdfapp_autozoom(app);
+		break;
+	case 'z':
+		app->resolution = app->default_resolution;
+		pdfapp_showpage(app, 0, 1, 1, 0, 0);
 		break;
 
 	case 'L':
@@ -1538,7 +1566,7 @@ static void handlescroll(pdfapp_t *app, int modifiers, int dir)
 	if (modifiers & (1<<2))
 	{
 		/* zoom in/out if ctrl is pressed */
-		if (dir < 0)
+		if (dir > 0)
 			app->resolution = zoom_in(app->resolution);
 		else
 			app->resolution = zoom_out(app->resolution);

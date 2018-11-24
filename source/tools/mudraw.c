@@ -35,7 +35,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz);
 
 enum {
 	OUT_NONE,
-	OUT_PNG, OUT_TGA, OUT_PNM, OUT_PGM, OUT_PPM, OUT_PAM,
+	OUT_PNG, OUT_PNM, OUT_PGM, OUT_PPM, OUT_PAM,
 	OUT_PBM, OUT_PKM, OUT_PWG, OUT_PCL, OUT_PS, OUT_PSD,
 	OUT_TEXT, OUT_HTML, OUT_XHTML, OUT_STEXT, OUT_PCLM,
 	OUT_TRACE, OUT_SVG,
@@ -74,7 +74,6 @@ static const suffix_t suffix_table[] =
 #endif
 	{ ".psd", OUT_PSD, 1 },
 	{ ".ps", OUT_PS, 0 },
-	{ ".tga", OUT_TGA, 0 },
 
 	{ ".txt", OUT_TEXT, 0 },
 	{ ".text", OUT_TEXT, 0 },
@@ -131,7 +130,6 @@ static const format_cs_table_t format_cs_table[] =
 	{ OUT_PCLM, CS_RGB, { CS_RGB, CS_GRAY } },
 	{ OUT_PS, CS_RGB, { CS_GRAY, CS_RGB, CS_CMYK } },
 	{ OUT_PSD, CS_CMYK, { CS_GRAY, CS_GRAY_ALPHA, CS_RGB, CS_RGB_ALPHA, CS_CMYK, CS_CMYK_ALPHA, CS_ICC } },
-	{ OUT_TGA, CS_RGB, { CS_GRAY, CS_GRAY_ALPHA, CS_RGB, CS_RGB_ALPHA } },
 
 	{ OUT_TRACE, CS_RGB, { CS_RGB } },
 	{ OUT_SVG, CS_RGB, { CS_RGB } },
@@ -259,6 +257,7 @@ static int invert = 0;
 static int band_height = 0;
 static int lowmemory = 0;
 
+static int quiet = 0;
 static int errored = 0;
 static fz_colorspace *colorspace = NULL;
 static fz_colorspace *oi = NULL;
@@ -317,10 +316,11 @@ static void usage(void)
 		"\n"
 		"\t-o -\toutput file name (%%d for page number)\n"
 		"\t-F -\toutput format (default inferred from output file name)\n"
-		"\t\traster: png, tga, pnm, pam, pbm, pkm, pwg, pcl, ps\n"
+		"\t\traster: png, pnm, pam, pbm, pkm, pwg, pcl, ps\n"
 		"\t\tvector: svg, pdf, trace\n"
 		"\t\ttext: txt, html, stext\n"
 		"\n"
+		"\t-q\tbe quiet (don't print progress messages)\n"
 		"\t-s -\tshow extra information:\n"
 		"\t\tm - show memory use\n"
 		"\t\tt - show timings\n"
@@ -721,11 +721,6 @@ static void dodrawpage(fz_context *ctx, fz_page *page, fz_display_list *list, in
 		zoom = resolution / 72;
 		ctm = fz_pre_scale(fz_rotate(rotation), zoom, zoom);
 
-		if (output_format == OUT_TGA)
-		{
-			ctm = fz_pre_scale(fz_pre_translate(ctm, 0, -height), 1, -1);
-		}
-
 		tbounds = fz_transform_rect(mediabox, ctm);
 		ibounds = fz_round_rect(tbounds);
 
@@ -842,8 +837,6 @@ static void dodrawpage(fz_context *ctx, fz_page *page, fz_display_list *list, in
 					bander = fz_new_ps_band_writer(ctx, out);
 				else if (output_format == OUT_PSD)
 					bander = fz_new_psd_band_writer(ctx, out);
-				else if (output_format == OUT_TGA)
-					bander = fz_new_tga_band_writer(ctx, out, fz_colorspace_is_bgr(ctx, colorspace));
 				else if (output_format == OUT_PWG)
 				{
 					if (out_cs == CS_MONO)
@@ -995,7 +988,8 @@ static void dodrawpage(fz_context *ctx, fz_page *page, fz_display_list *list, in
 		}
 	}
 
-	fprintf(stderr, "\n");
+	if (!quiet || showfeatures || showtime || showmd5)
+		fprintf(stderr, "\n");
 
 	if (lowmemory)
 		fz_empty_store(ctx);
@@ -1028,6 +1022,7 @@ static void drawpage(fz_context *ctx, fz_document *doc, int pagenum)
 	int start;
 	fz_cookie cookie = { 0 };
 	fz_separations *seps = NULL;
+	const char *features = "";
 
 	fz_var(list);
 	fz_var(dev);
@@ -1131,7 +1126,7 @@ static void drawpage(fz_context *ctx, fz_document *doc, int pagenum)
 			fz_drop_page(ctx, page);
 			fz_rethrow(ctx);
 		}
-		fprintf(stderr, " %s", iscolor ? "color" : "grayscale");
+		features = iscolor ? " color" : " grayscale";
 	}
 
 	if (output_file_per_page)
@@ -1153,7 +1148,8 @@ static void drawpage(fz_context *ctx, fz_document *doc, int pagenum)
 		bgprint_flush();
 		if (bgprint.active)
 		{
-			fprintf(stderr, "page %s %d", filename, pagenum);
+			if (!quiet || showfeatures || showtime || showmd5)
+				fprintf(stderr, "page %s %d%s", filename, pagenum, features);
 		}
 
 		bgprint.started = 1;
@@ -1172,7 +1168,8 @@ static void drawpage(fz_context *ctx, fz_document *doc, int pagenum)
 	}
 	else
 	{
-		fprintf(stderr, "page %s %d", filename, pagenum);
+		if (!quiet || showfeatures || showtime || showmd5)
+			fprintf(stderr, "page %s %d%s", filename, pagenum, features);
 		dodrawpage(ctx, page, list, pagenum, &cookie, start, 0, filename, 0, seps);
 	}
 }
@@ -1469,11 +1466,13 @@ int mudraw_main(int argc, char **argv)
 
 	fz_var(doc);
 
-	while ((c = fz_getopt(argc, argv, "p:o:F:R:r:w:h:fB:c:e:G:Is:A:DiW:H:S:T:U:XLvPl:y:NO:")) != -1)
+	while ((c = fz_getopt(argc, argv, "qp:o:F:R:r:w:h:fB:c:e:G:Is:A:DiW:H:S:T:U:XLvPl:y:NO:")) != -1)
 	{
 		switch (c)
 		{
 		default: usage(); break;
+
+		case 'q': quiet = 1; break;
 
 		case 'p': password = fz_optarg; break;
 
@@ -1702,9 +1701,9 @@ int mudraw_main(int argc, char **argv)
 
 		if (band_height)
 		{
-			if (output_format != OUT_PAM && output_format != OUT_PGM && output_format != OUT_PPM && output_format != OUT_PNM && output_format != OUT_PNG && output_format != OUT_PBM && output_format != OUT_PKM && output_format != OUT_PCL && output_format != OUT_PCLM && output_format != OUT_PS && output_format != OUT_PSD && output_format != OUT_TGA)
+			if (output_format != OUT_PAM && output_format != OUT_PGM && output_format != OUT_PPM && output_format != OUT_PNM && output_format != OUT_PNG && output_format != OUT_PBM && output_format != OUT_PKM && output_format != OUT_PCL && output_format != OUT_PCLM && output_format != OUT_PS && output_format != OUT_PSD)
 			{
-				fprintf(stderr, "Banded operation only possible with PxM, PCL, PCLM, PS, PSD, PNG and TGA outputs\n");
+				fprintf(stderr, "Banded operation only possible with PxM, PCL, PCLM, PS, PSD, and PNG outputs\n");
 				exit(1);
 			}
 			if (showmd5)
@@ -1847,6 +1846,7 @@ int mudraw_main(int argc, char **argv)
 			}
 			else
 			{
+				quiet = 1; /* automatically be quiet if printing to stdout */
 #ifdef _WIN32
 				/* Windows specific code to make stdout binary. */
 				if (output_format != OUT_TEXT && output_format != OUT_STEXT && output_format != OUT_HTML && output_format != OUT_XHTML && output_format != OUT_TRACE)

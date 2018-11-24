@@ -2,11 +2,10 @@
 #include "svg-imp.h"
 
 #include <string.h>
-#include <stdio.h> /* for sscanf */
 #include <math.h>
 
 /* default page size */
-#define DEF_WIDTH 12
+#define DEF_WIDTH 612
 #define DEF_HEIGHT 792
 #define DEF_FONTSIZE 12
 
@@ -794,46 +793,44 @@ svg_run_path(fz_context *ctx, fz_device *dev, svg_document *doc, fz_xml *node, c
 void
 svg_parse_viewport(fz_context *ctx, svg_document *doc, fz_xml *node, svg_state *state)
 {
-	//fz_matrix *transform = &state->transform;
-
-	char *x_att = fz_xml_att(node, "x");
-	char *y_att = fz_xml_att(node, "y");
 	char *w_att = fz_xml_att(node, "width");
 	char *h_att = fz_xml_att(node, "height");
 
-	float x = 0;
-	float y = 0;
-	float w = state->viewport_w;
-	float h = state->viewport_h;
+	if (w_att)
+		state->viewport_w = svg_parse_length(w_att, state->viewbox_w, state->fontsize);
+	if (h_att)
+		state->viewport_h = svg_parse_length(h_att, state->viewbox_h, state->fontsize);
 
-	if (x_att) x = svg_parse_length(x_att, state->viewbox_w, state->fontsize);
-	if (y_att) y = svg_parse_length(y_att, state->viewbox_h, state->fontsize);
-	if (w_att) w = svg_parse_length(w_att, state->viewbox_w, state->fontsize);
-	if (h_att) h = svg_parse_length(h_att, state->viewbox_h, state->fontsize);
+}
 
-	/* TODO: new transform */
-	fz_warn(ctx, "push viewport: %g %g %g %g", x, y, w, h);
-
-	state->viewport_w = w;
-	state->viewport_h = h;
+static void
+svg_lex_viewbox(const char *s, float *x, float *y, float *w, float *h)
+{
+	while (svg_is_whitespace_or_comma(*s)) ++s;
+	if (svg_is_digit(*s)) s = svg_lex_number(x, s);
+	while (svg_is_whitespace_or_comma(*s)) ++s;
+	if (svg_is_digit(*s)) s = svg_lex_number(y, s);
+	while (svg_is_whitespace_or_comma(*s)) ++s;
+	if (svg_is_digit(*s)) s = svg_lex_number(w, s);
+	while (svg_is_whitespace_or_comma(*s)) ++s;
+	if (svg_is_digit(*s)) s = svg_lex_number(h, s);
 }
 
 /* svg, symbol, image, foreignObject plus marker, pattern, view can use viewBox to set the transform */
 void
 svg_parse_viewbox(fz_context *ctx, svg_document *doc, fz_xml *node, svg_state *state)
 {
-	//fz_matrix *transform = &state->transform;
-	//float port_w = state->viewport_w;
-	//float port_h = state->viewport_h;
-	float min_x, min_y, box_w, box_h;
-
 	char *viewbox_att = fz_xml_att(node, "viewBox");
 	if (viewbox_att)
 	{
-		sscanf(viewbox_att, "%g %g %g %g", &min_x, &min_y, &box_w, &box_h);
-
-		/* scale and translate to fit [x y w h] to [0 0 viewport.w viewport.h] */
-		fz_warn(ctx, "push viewbox: %g %g %g %g", min_x, min_y, box_w, box_h);
+		/* scale and translate to fit [min-x min-y w h] to [0 0 viewport.w viewport.h] */
+		float min_x, min_y, box_w, box_h;
+		svg_lex_viewbox(viewbox_att, &min_x, &min_y, &box_w, &box_h);
+		state->transform = fz_concat(state->transform, fz_translate(-min_x, -min_y));
+		state->transform = fz_concat(state->transform,
+			fz_scale(state->viewport_w / box_w, state->viewport_h / box_h));
+		state->viewbox_w = box_w;
+		state->viewbox_h = box_h;
 	}
 }
 
@@ -986,6 +983,19 @@ svg_run_svg(fz_context *ctx, fz_device *dev, svg_document *doc, fz_xml *root, co
 	svg_state local_state = *inherit_state;
 	fz_xml *node;
 
+	char *w_att = fz_xml_att(root, "width");
+	char *h_att = fz_xml_att(root, "height");
+	char *viewbox_att = fz_xml_att(root, "viewBox");
+
+	/* get default viewport from viewBox if width and/or height is missing */
+	if (viewbox_att && (!w_att || !h_att))
+	{
+		float x, y;
+		svg_lex_viewbox(viewbox_att, &x, &y, &local_state.viewbox_w, &local_state.viewbox_h);
+		if (!w_att) local_state.viewport_w = local_state.viewbox_w;
+		if (!h_att) local_state.viewport_h = local_state.viewbox_h;
+	}
+
 	svg_parse_viewport(ctx, doc, root, &local_state);
 	svg_parse_viewbox(ctx, doc, root, &local_state);
 	svg_parse_common(ctx, doc, root, &local_state);
@@ -1055,6 +1065,67 @@ svg_run_use(fz_context *ctx, fz_device *dev, svg_document *doc, fz_xml *root, co
 }
 
 static void
+svg_run_image(fz_context *ctx, fz_device *dev, svg_document *doc, fz_xml *root, const svg_state *inherit_state)
+{
+	svg_state local_state = *inherit_state;
+	float x=0, y=0, w=0, h=0;
+	const char *data;
+
+	static const char *jpeg_uri = "data:image/jpeg;base64,";
+	static const char *png_uri = "data:image/png;base64,";
+
+	char *href_att = fz_xml_att(root, "xlink:href");
+	char *x_att = fz_xml_att(root, "x");
+	char *y_att = fz_xml_att(root, "y");
+	char *w_att = fz_xml_att(root, "width");
+	char *h_att = fz_xml_att(root, "height");
+
+	svg_parse_common(ctx, doc, root, &local_state);
+	if (x_att) x = svg_parse_length(x_att, local_state.viewbox_w, local_state.fontsize);
+	if (y_att) y = svg_parse_length(y_att, local_state.viewbox_h, local_state.fontsize);
+	if (w_att) w = svg_parse_length(w_att, local_state.viewbox_w, local_state.fontsize);
+	if (h_att) h = svg_parse_length(h_att, local_state.viewbox_h, local_state.fontsize);
+
+	if (w <= 0 || h <= 0)
+		return;
+
+	local_state.transform = fz_pre_translate(local_state.transform, x, y);
+	local_state.transform = fz_pre_scale(local_state.transform, w, h);
+
+	if (!strncmp(href_att, jpeg_uri, strlen(jpeg_uri)))
+		data = href_att + strlen(jpeg_uri);
+	else if (!strncmp(href_att, png_uri, strlen(png_uri)))
+		data = href_att + strlen(png_uri);
+	else
+		data = NULL;
+	if (data)
+	{
+		fz_image *img = NULL;
+		fz_buffer *buf;
+
+		fz_var(img);
+
+		buf = fz_new_buffer_from_base64(ctx, data, 0);
+		fz_try(ctx)
+		{
+			img = fz_new_image_from_buffer(ctx, buf);
+			fz_fill_image(ctx, dev, img, local_state.transform, 1, NULL);
+		}
+		fz_always(ctx)
+		{
+			fz_drop_buffer(ctx, buf);
+			fz_drop_image(ctx, img);
+		}
+		fz_catch(ctx)
+			fz_warn(ctx, "svg: ignoring embedded image '%s'", href_att);
+	}
+	else
+	{
+		fz_warn(ctx, "svg: ignoring external image '%s'", href_att);
+	}
+}
+
+static void
 svg_run_element(fz_context *ctx, fz_device *dev, svg_document *doc, fz_xml *root, const svg_state *state)
 {
 	if (fz_xml_is_tag(root, "svg"))
@@ -1091,9 +1162,10 @@ svg_run_element(fz_context *ctx, fz_device *dev, svg_document *doc, fz_xml *root
 	else if (fz_xml_is_tag(root, "polygon"))
 		svg_run_polygon(ctx, dev, doc, root, state);
 
-#if 0
 	else if (fz_xml_is_tag(root, "image"))
-		svg_parse_image(ctx, doc, root);
+		svg_run_image(ctx, dev, doc, root, state);
+
+#if 0
 	else if (fz_xml_is_tag(root, "text"))
 		svg_run_text(ctx, dev, doc, root);
 	else if (fz_xml_is_tag(root, "tspan"))
@@ -1138,7 +1210,7 @@ svg_parse_document_bounds(fz_context *ctx, svg_document *doc, fz_xml *root)
 	if (w_att == NULL && h_att == NULL && viewbox_att != NULL)
 	{
 		float min_x, min_y, box_w, box_h;
-		sscanf(viewbox_att, "%g %g %g %g", &min_x, &min_y, &box_w, &box_h);
+		svg_lex_viewbox(viewbox_att, &min_x, &min_y, &box_w, &box_h);
 		doc->width = box_w;
 		doc->height = box_h;
 	}

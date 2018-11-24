@@ -1900,6 +1900,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\source\fitz\encodings.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\source\fitz\error.c"
 				>
 			</File>
@@ -2089,10 +2093,6 @@
 			</File>
 			<File
 				RelativePath="..\..\source\fitz\output-svg.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\fitz\output-tga.c"
 				>
 			</File>
 			<File
@@ -2388,10 +2388,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\source\pdf\pdf-portfolio.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\source\pdf\pdf-repair.c"
 				>
 			</File>
@@ -2680,10 +2676,6 @@
 				</File>
 				<File
 					RelativePath="..\..\include\mupdf\fitz\output-svg.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\include\mupdf\fitz\output-tga.h"
 					>
 				</File>
 				<File

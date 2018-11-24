@@ -213,9 +213,14 @@ fz_print_outline(fz_context *ctx, fz_output *out, fz_outline *outline, int level
 	int i;
 	while (outline)
 	{
+		if (outline->down)
+			fz_write_byte(ctx, out, outline->is_open ? '-' : '+');
+		else
+			fz_write_byte(ctx, out, '|');
+
 		for (i = 0; i < level; i++)
-			fz_write_printf(ctx, out, "\t");
-		fz_write_printf(ctx, out, "%s\t%s\n", outline->title, outline->uri);
+			fz_write_byte(ctx, out, '\t');
+		fz_write_printf(ctx, out, "%q\t%s\n", outline->title, outline->uri);
 		if (outline->down)
 			fz_print_outline(ctx, out, outline->down, level + 1);
 		outline = outline->next;
@@ -226,7 +231,7 @@ static void showoutline(void)
 {
 	fz_outline *outline = fz_load_outline(ctx, (fz_document*)doc);
 	fz_try(ctx)
-		fz_print_outline(ctx, fz_stdout(ctx), outline, 0);
+		fz_print_outline(ctx, fz_stdout(ctx), outline, 1);
 	fz_always(ctx)
 		fz_drop_outline(ctx, outline);
 	fz_catch(ctx)
@@ -291,7 +296,7 @@ static void showpath(char *path, pdf_obj *obj)
 				}
 			}
 			else if (isnumber(part))
-				showpath(path, pdf_array_get(ctx, obj, atoi(part)));
+				showpath(path, pdf_array_get(ctx, obj, atoi(part)-1));
 			else
 				showpath(path, pdf_dict_gets(ctx, obj, part));
 		}

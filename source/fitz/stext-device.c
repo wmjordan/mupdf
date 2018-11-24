@@ -24,6 +24,7 @@ struct fz_stext_device_s
 	int curdir;
 	int lastchar;
 	int flags;
+	const fz_text *lasttext;
 };
 
 const char *fz_stext_options_usage =
@@ -317,20 +318,25 @@ fz_add_stext_char_imp(fz_context *ctx, fz_stext_device *dev, fz_font *font, int 
 			{
 				if (fabsf(spacing) < size * SPACE_DIST)
 				{
-					/* Motion is in line, and small. */
+					/* Motion is in line and small enough to ignore. */
 					new_line = 0;
 				}
-				else if (spacing >= size * SPACE_DIST && spacing < size * SPACE_MAX_DIST)
+				else if (fabsf(spacing) > size * SPACE_MAX_DIST)
 				{
-					/* Motion is in line, but large enough to warrant us adding a space. */
-					if (dev->lastchar != ' ' && wmode == 0)
-						add_space = 1;
+					/* Motion is in line and large enough to warrant splitting to a new line */
+					new_line = 1;
+				}
+				else if (spacing < 0)
+				{
+					/* Motion is backward in line! Ignore this odd spacing. */
 					new_line = 0;
 				}
 				else
 				{
-					/* Motion is in line, but large enough to warrant splitting to a new line */
-					new_line = 1;
+					/* Motion is forward in line and large enough to warrant us adding a space. */
+					if (dev->lastchar != ' ' && wmode == 0)
+						add_space = 1;
+					new_line = 0;
 				}
 			}
 
@@ -499,9 +505,13 @@ fz_stext_fill_text(fz_context *ctx, fz_device *dev, const fz_text *text, fz_matr
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
+	if (text == tdev->lasttext)
+		return;
 	tdev->new_obj = 1;
 	for (span = text->head; span; span = span->next)
 		fz_stext_extract(ctx, tdev, span, ctm);
+	fz_drop_text(ctx, tdev->lasttext);
+	tdev->lasttext = fz_keep_text(ctx, text);
 }
 
 static void
@@ -510,9 +520,13 @@ fz_stext_stroke_text(fz_context *ctx, fz_device *dev, const fz_text *text, const
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
+	if (text == tdev->lasttext)
+		return;
 	tdev->new_obj = 1;
 	for (span = text->head; span; span = span->next)
 		fz_stext_extract(ctx, tdev, span, ctm);
+	fz_drop_text(ctx, tdev->lasttext);
+	tdev->lasttext = fz_keep_text(ctx, text);
 }
 
 static void
@@ -520,9 +534,13 @@ fz_stext_clip_text(fz_context *ctx, fz_device *dev, const fz_text *text, fz_matr
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
+	if (text == tdev->lasttext)
+		return;
 	tdev->new_obj = 1;
 	for (span = text->head; span; span = span->next)
 		fz_stext_extract(ctx, tdev, span, ctm);
+	fz_drop_text(ctx, tdev->lasttext);
+	tdev->lasttext = fz_keep_text(ctx, text);
 }
 
 static void
@@ -530,9 +548,13 @@ fz_stext_clip_stroke_text(fz_context *ctx, fz_device *dev, const fz_text *text, 
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
+	if (text == tdev->lasttext)
+		return;
 	tdev->new_obj = 1;
 	for (span = text->head; span; span = span->next)
 		fz_stext_extract(ctx, tdev, span, ctm);
+	fz_drop_text(ctx, tdev->lasttext);
+	tdev->lasttext = fz_keep_text(ctx, text);
 }
 
 static void
@@ -540,9 +562,13 @@ fz_stext_ignore_text(fz_context *ctx, fz_device *dev, const fz_text *text, fz_ma
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
+	if (text == tdev->lasttext)
+		return;
 	tdev->new_obj = 1;
 	for (span = text->head; span; span = span->next)
 		fz_stext_extract(ctx, tdev, span, ctm);
+	fz_drop_text(ctx, tdev->lasttext);
+	tdev->lasttext = fz_keep_text(ctx, text);
 }
 
 /* Images and shadings */
@@ -633,7 +659,13 @@ fz_stext_close_device(fz_context *ctx, fz_device *dev)
 		for (line = block->u.t.first_line; line; line = line->next)
 		{
 			for (ch = line->first_char; ch; ch = ch->next)
-				line->bbox = fz_union_rect(line->bbox, fz_rect_from_quad(ch->quad));
+			{
+				fz_rect ch_box = fz_rect_from_quad(ch->quad);
+				if (ch == line->first_char)
+					line->bbox = ch_box;
+				else
+					line->bbox = fz_union_rect(line->bbox, ch_box);
+			}
 			block->bbox = fz_union_rect(block->bbox, line->bbox);
 		}
 	}
@@ -645,6 +677,8 @@ fz_stext_close_device(fz_context *ctx, fz_device *dev)
 static void
 fz_stext_drop_device(fz_context *ctx, fz_device *dev)
 {
+	fz_stext_device *tdev = (fz_stext_device*)dev;
+	fz_drop_text(ctx, tdev->lasttext);
 }
 
 fz_stext_options *
@@ -692,6 +726,7 @@ fz_new_stext_device(fz_context *ctx, fz_stext_page *page, const fz_stext_options
 	dev->trm = fz_identity;
 	dev->lastchar = ' ';
 	dev->curdir = 1;
+	dev->lasttext = NULL;
 
 	return (fz_device*)dev;
 }

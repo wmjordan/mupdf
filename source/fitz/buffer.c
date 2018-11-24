@@ -80,7 +80,7 @@ fz_buffer *
 fz_new_buffer_from_base64(fz_context *ctx, const char *data, size_t size)
 {
 	fz_buffer *buf = fz_new_buffer(ctx, size);
-	const char *end = data + size;
+	const char *end = data + (size > 0 ? size : strlen(data));
 	const char *s = data;
 	fz_try(ctx)
 	{
@@ -162,6 +162,12 @@ fz_trim_buffer(fz_context *ctx, fz_buffer *buf)
 {
 	if (buf->cap > buf->len+1)
 		fz_resize_buffer(ctx, buf, buf->len);
+}
+
+void
+fz_clear_buffer(fz_context *ctx, fz_buffer *buf)
+{
+	buf->len = 0;
 }
 
 void

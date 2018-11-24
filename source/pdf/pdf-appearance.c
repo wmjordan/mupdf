@@ -673,7 +673,7 @@ measure_simple_string(fz_context *ctx, fz_font *font, const char *text)
 	{
 		int c, g;
 		text += fz_chartorune(&c, text);
-		c = pdf_winansi_from_unicode(c);
+		c = fz_windows_1252_from_unicode(c);
 		if (c < 0) c = REPLACEMENT;
 		g = fz_encode_character(ctx, font, c);
 		w += fz_advance_glyph(ctx, font, g, 0);
@@ -689,7 +689,7 @@ write_simple_string(fz_context *ctx, fz_buffer *buf, const char *a, const char *
 	{
 		int c;
 		a += fz_chartorune(&c, a);
-		c = pdf_winansi_from_unicode(c);
+		c = fz_windows_1252_from_unicode(c);
 		if (c < 0) c = REPLACEMENT;
 		if (c == '(' || c == ')' || c == '\\')
 			fz_append_byte(ctx, buf, '\\');
@@ -871,7 +871,7 @@ write_comb_string(fz_context *ctx, fz_buffer *buf, const char *a, const char *b,
 		int c, g;
 
 		a += fz_chartorune(&c, a);
-		c = pdf_winansi_from_unicode(c);
+		c = fz_windows_1252_from_unicode(c);
 		if (c < 0) c = REPLACEMENT;
 
 		g = fz_encode_character(ctx, font, c);
@@ -1067,6 +1067,25 @@ pdf_write_ch_widget_appearance(fz_context *ctx, pdf_annot *annot, fz_buffer *buf
 }
 
 static void
+pdf_write_sig_widget_appearance(fz_context *ctx, pdf_annot *annot, fz_buffer *buf,
+	fz_rect *rect, fz_rect *bbox, fz_matrix *matrix, pdf_obj **res)
+{
+	float x0 = rect->x0 + 1;
+	float y0 = rect->y0 + 1;
+	float x1 = rect->x1 - 1;
+	float y1 = rect->y1 - 1;
+	float w = x1 - x0;
+	float h = y1 - y0;
+	fz_append_printf(ctx, buf, "1 w\n0 G\n");
+	fz_append_printf(ctx, buf, "%g %g %g %g re\n", x0, y0, w, h);
+	fz_append_printf(ctx, buf, "%g %g m %g %g l\n", x0, y0, x1, y1);
+	fz_append_printf(ctx, buf, "%g %g m %g %g l\n", x1, y0, x0, y1);
+	fz_append_printf(ctx, buf, "s\n");
+	*bbox = *rect;
+	*matrix = fz_identity;
+}
+
+static void
 pdf_write_widget_appearance(fz_context *ctx, pdf_annot *annot, fz_buffer *buf,
 	fz_rect *rect, fz_rect *bbox, fz_matrix *matrix, pdf_obj **res)
 {
@@ -1114,6 +1133,10 @@ pdf_write_widget_appearance(fz_context *ctx, pdf_annot *annot, fz_buffer *buf,
 			fz_free(ctx, text);
 		fz_catch(ctx)
 			fz_rethrow(ctx);
+	}
+	else if (pdf_name_eq(ctx, ft, PDF_NAME(Sig)))
+	{
+		pdf_write_sig_widget_appearance(ctx, annot, buf, rect, bbox, matrix, res);
 	}
 	else
 	{

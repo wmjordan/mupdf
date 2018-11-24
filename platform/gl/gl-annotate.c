@@ -39,6 +39,7 @@ static void save_pdf_options(void)
 	ui_checkbox("Compress images", &save_opts.do_compress_images);
 	ui_checkbox("Compress fonts", &save_opts.do_compress_fonts);
 	ui_checkbox("Decompress", &save_opts.do_decompress);
+	ui_checkbox("Decrypt", &save_opts.do_decrypt);
 	ui_checkbox("Garbage collect", &save_opts.do_garbage);
 	ui_checkbox("Linearize", &save_opts.do_linear);
 	ui_checkbox("Clean syntax", &save_opts.do_clean);
@@ -95,99 +96,14 @@ static const char *getuser(void)
 
 static void new_annot(int type)
 {
-	static const float black[3] = { 0, 0, 0 };
-	static const float red[3] = { 1, 0, 0 };
-	static const float green[3] = { 0, 1, 0 };
-	static const float blue[3] = { 0, 0, 1 };
-	static const float yellow[3] = { 1, 1, 0 };
-	static const float magenta[3] = { 1, 0, 1 };
-
 	selected_annot = pdf_create_annot(ctx, page, type);
 
 	pdf_set_annot_modification_date(ctx, selected_annot, time(NULL));
 	if (pdf_annot_has_author(ctx, selected_annot))
 		pdf_set_annot_author(ctx, selected_annot, getuser());
 
-	switch (type)
-	{
-	case PDF_ANNOT_TEXT:
-	case PDF_ANNOT_FILE_ATTACHMENT:
-	case PDF_ANNOT_SOUND:
-		{
-			fz_rect icon_rect = { 12, 12, 12+20, 12+20 };
-			pdf_set_annot_flags(ctx, selected_annot,
-				PDF_ANNOT_IS_PRINT | PDF_ANNOT_IS_NO_ZOOM | PDF_ANNOT_IS_NO_ROTATE);
-			pdf_set_annot_rect(ctx, selected_annot, icon_rect);
-			pdf_set_annot_color(ctx, selected_annot, 3, yellow);
-		}
-		break;
-
-	case PDF_ANNOT_FREE_TEXT:
-		{
-			fz_rect text_rect = { 12, 12, 12+200, 12+100 };
-			pdf_set_annot_rect(ctx, selected_annot, text_rect);
-			pdf_set_annot_border(ctx, selected_annot, 0);
-			pdf_set_annot_default_appearance(ctx, selected_annot, "Helv", 12, black);
-		}
-		break;
-
-	case PDF_ANNOT_STAMP:
-		{
-			fz_rect stamp_rect = { 12, 12, 12+190, 12+50 };
-			pdf_set_annot_rect(ctx, selected_annot, stamp_rect);
-			pdf_set_annot_color(ctx, selected_annot, 3, red);
-		}
-		break;
-
-	case PDF_ANNOT_CARET:
-		{
-			fz_rect caret_rect = { 12, 12, 12+18, 12+15 };
-			pdf_set_annot_rect(ctx, selected_annot, caret_rect);
-			pdf_set_annot_color(ctx, selected_annot, 3, blue);
-		}
-		break;
-
-	case PDF_ANNOT_LINE:
-		{
-			fz_point a = { 12, 12 }, b = { 12 + 100, 12 + 50 };
-			pdf_set_annot_line(ctx, selected_annot, a, b);
-			pdf_set_annot_border(ctx, selected_annot, 1);
-			pdf_set_annot_color(ctx, selected_annot, 3, red);
-		}
-		break;
-
-	case PDF_ANNOT_SQUARE:
-	case PDF_ANNOT_CIRCLE:
-		{
-			fz_rect shape_rect = { 12, 12, 12+100, 12+50 };
-			pdf_set_annot_rect(ctx, selected_annot, shape_rect);
-			pdf_set_annot_border(ctx, selected_annot, 1);
-			pdf_set_annot_color(ctx, selected_annot, 3, red);
-		}
-		break;
-
-	case PDF_ANNOT_POLYGON:
-	case PDF_ANNOT_POLY_LINE:
-	case PDF_ANNOT_INK:
-		pdf_set_annot_border(ctx, selected_annot, 1);
-		pdf_set_annot_color(ctx, selected_annot, 3, red);
-		break;
-
-	case PDF_ANNOT_HIGHLIGHT:
-		pdf_set_annot_color(ctx, selected_annot, 3, yellow);
-		break;
-	case PDF_ANNOT_UNDERLINE:
-		pdf_set_annot_color(ctx, selected_annot, 3, green);
-		break;
-	case PDF_ANNOT_STRIKE_OUT:
-		pdf_set_annot_color(ctx, selected_annot, 3, red);
-		break;
-	case PDF_ANNOT_SQUIGGLY:
-		pdf_set_annot_color(ctx, selected_annot, 3, magenta);
-		break;
-	}
-
 	pdf_update_appearance(ctx, selected_annot);
+
 	render_page();
 }
 

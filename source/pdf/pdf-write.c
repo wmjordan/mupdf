@@ -68,6 +68,7 @@ struct pdf_write_state_s
 	int do_garbage;
 	int do_linear;
 	int do_clean;
+	int do_decrypt;
 
 	int list_len;
 	int *use_list;
@@ -1705,13 +1706,25 @@ static void copystream(fz_context *ctx, pdf_document *doc, pdf_write_state *opts
 			addhexfilter(ctx, doc, obj);
 		}
 
-		pdf_dict_put_int(ctx, obj, PDF_NAME(Length), pdf_encrypted_len(ctx, doc->crypt, num, gen, (int)len));
-
 		fz_write_printf(ctx, opts->out, "%d %d obj\n", num, gen);
-		pdf_print_encrypted_obj(ctx, opts->out, obj, opts->do_tight, doc->crypt, num, gen);
-		fz_write_string(ctx, opts->out, "\nstream\n");
-		pdf_encrypt_data(ctx, doc->crypt, num, gen, write_data, opts->out, data, len);
+
+		if (opts->do_decrypt)
+		{
+			pdf_dict_put_int(ctx, obj, PDF_NAME(Length), len);
+			pdf_print_obj(ctx, opts->out, obj, opts->do_tight);
+			fz_write_string(ctx, opts->out, "\nstream\n");
+			fz_write_data(ctx, opts->out, data, len);
+		}
+		else
+		{
+			pdf_dict_put_int(ctx, obj, PDF_NAME(Length), pdf_encrypted_len(ctx, doc->crypt, num, gen, (int)len));
+			pdf_print_encrypted_obj(ctx, opts->out, obj, opts->do_tight, doc->crypt, num, gen);
+			fz_write_string(ctx, opts->out, "\nstream\n");
+			pdf_encrypt_data(ctx, doc->crypt, num, gen, write_data, opts->out, data, len);
+		}
+
 		fz_write_string(ctx, opts->out, "\nendstream\nendobj\n\n");
+
 	}
 	fz_always(ctx)
 	{
@@ -1769,12 +1782,23 @@ static void expandstream(fz_context *ctx, pdf_document *doc, pdf_write_state *op
 			addhexfilter(ctx, doc, obj);
 		}
 
-		pdf_dict_put_int(ctx, obj, PDF_NAME(Length), len);
-
 		fz_write_printf(ctx, opts->out, "%d %d obj\n", num, gen);
-		pdf_print_encrypted_obj(ctx, opts->out, obj, opts->do_tight, doc->crypt, num, gen);
-		fz_write_string(ctx, opts->out, "\nstream\n");
-		fz_write_data(ctx, opts->out, data, len);
+
+		if (opts->do_decrypt)
+		{
+			pdf_dict_put_int(ctx, obj, PDF_NAME(Length), len);
+			pdf_print_obj(ctx, opts->out, obj, opts->do_tight);
+			fz_write_string(ctx, opts->out, "\nstream\n");
+			fz_write_data(ctx, opts->out, data, len);
+		}
+		else
+		{
+			pdf_dict_put_int(ctx, obj, PDF_NAME(Length), pdf_encrypted_len(ctx, doc->crypt, num, gen, (int)len));
+			pdf_print_encrypted_obj(ctx, opts->out, obj, opts->do_tight, doc->crypt, num, gen);
+			fz_write_string(ctx, opts->out, "\nstream\n");
+			pdf_encrypt_data(ctx, doc->crypt, num, gen, write_data, opts->out, data, len);
+		}
+
 		fz_write_string(ctx, opts->out, "\nendstream\nendobj\n\n");
 	}
 	fz_always(ctx)
@@ -1789,29 +1813,41 @@ static void expandstream(fz_context *ctx, pdf_document *doc, pdf_write_state *op
 	}
 }
 
-static int is_image_filter(const char *s)
+static int is_image_filter(pdf_obj *s)
 {
-	if (!strcmp(s, "CCITTFaxDecode") || !strcmp(s, "CCF") ||
-		!strcmp(s, "DCTDecode") || !strcmp(s, "DCT") ||
-		!strcmp(s, "RunLengthDecode") || !strcmp(s, "RL") ||
-		!strcmp(s, "JBIG2Decode") ||
-		!strcmp(s, "JPXDecode"))
-		return 1;
-	return 0;
+	return
+		s == PDF_NAME(CCITTFaxDecode) || s == PDF_NAME(CCF) ||
+		s == PDF_NAME(DCTDecode) || s == PDF_NAME(DCT) ||
+		s == PDF_NAME(RunLengthDecode) || s == PDF_NAME(RL) ||
+		s == PDF_NAME(JBIG2Decode) ||
+		s == PDF_NAME(JPXDecode);
 }
 
 static int filter_implies_image(fz_context *ctx, pdf_obj *o)
 {
-	if (!o)
-		return 0;
 	if (pdf_is_name(ctx, o))
-		return is_image_filter(pdf_to_name(ctx, o));
+		return is_image_filter(o);
 	if (pdf_is_array(ctx, o))
 	{
 		int i, len;
 		len = pdf_array_len(ctx, o);
 		for (i = 0; i < len; i++)
-			if (is_image_filter(pdf_to_name(ctx, pdf_array_get(ctx, o, i))))
+			if (is_image_filter(pdf_array_get(ctx, o, i)))
+				return 1;
+	}
+	return 0;
+}
+
+static int is_jpx_filter(fz_context *ctx, pdf_obj *o)
+{
+	if (o == PDF_NAME(JPXDecode))
+		return 1;
+	if (pdf_is_array(ctx, o))
+	{
+		int i, len;
+		len = pdf_array_len(ctx, o);
+		for (i = 0; i < len; i++)
+			if (pdf_array_get(ctx, o, i) == PDF_NAME(JPXDecode))
 				return 1;
 	}
 	return 0;
@@ -1850,6 +1886,15 @@ static int is_font_stream(fz_context *ctx, pdf_obj *obj)
 	return 0;
 }
 
+static int is_jpx_stream(fz_context *ctx, pdf_obj *obj)
+{
+	pdf_obj *o;
+	if (o = pdf_dict_get(ctx, obj, PDF_NAME(Filter)), is_jpx_filter(ctx, o))
+		return 1;
+	return 0;
+}
+
+
 static int is_xml_metadata(fz_context *ctx, pdf_obj *obj)
 {
 	if (pdf_name_eq(ctx, pdf_dict_get(ctx, obj, PDF_NAME(Type)), PDF_NAME(Metadata)))
@@ -1863,6 +1908,9 @@ static void writeobject(fz_context *ctx, pdf_document *doc, pdf_write_state *opt
 	pdf_xref_entry *entry;
 	pdf_obj *obj;
 	pdf_obj *type;
+
+	if (opts->do_decrypt)
+		unenc = 1;
 
 	fz_try(ctx)
 	{
@@ -1911,7 +1959,7 @@ static void writeobject(fz_context *ctx, pdf_document *doc, pdf_write_state *opt
 	else if (entry->stm_ofs < 0 && entry->stm_buf == NULL)
 	{
 		fz_write_printf(ctx, opts->out, "%d %d obj\n", num, gen);
-		pdf_print_encrypted_obj(ctx, opts->out, obj, opts->do_tight, doc->crypt, num, gen);
+		pdf_print_encrypted_obj(ctx, opts->out, obj, opts->do_tight, unenc ? NULL : doc->crypt, num, gen);
 		fz_write_string(ctx, opts->out, "\nstream\nendstream\nendobj\n\n");
 	}
 	else
@@ -1925,6 +1973,8 @@ static void writeobject(fz_context *ctx, pdf_document *doc, pdf_write_state *opt
 			if (opts->do_compress_fonts && is_font_stream(ctx, obj))
 				do_deflate = 1, do_expand = 0;
 			if (is_xml_metadata(ctx, obj))
+				do_deflate = 0, do_expand = 0;
+			if (is_jpx_stream(ctx, obj))
 				do_deflate = 0, do_expand = 0;
 			if (do_expand)
 				expandstream(ctx, doc, opts, obj, num, gen, do_deflate);
@@ -2642,7 +2692,7 @@ static void presize_unsaved_signature_byteranges(fz_context *ctx, pdf_document *
 static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_state *opts)
 {
 	pdf_unsaved_sig *usig;
-	char *buf = NULL;
+	char *buf = NULL, *ptr;
 	int buf_size;
 	int s;
 	int i;
@@ -2719,7 +2769,9 @@ static void complete_signatures(fz_context *ctx, pdf_document *doc, pdf_write_st
 					pdf_dict_putl_drop(ctx, usig->field, pdf_copy_array(ctx, byte_range), PDF_NAME(V), PDF_NAME(ByteRange), NULL);
 
 				/* Write the byte range into buf, padding with spaces*/
-				i = pdf_sprint_obj(ctx, buf, buf_size, byte_range, 1);
+				ptr = pdf_sprint_obj(ctx, buf, buf_size, &i, byte_range, 1);
+				if (ptr != buf) /* should never happen, since data should fit in buf_size */
+					fz_free(ctx, ptr);
 				memset(buf+i, ' ', buf_size-i);
 
 				/* Write the byte range to the file */
@@ -2800,6 +2852,7 @@ static void initialise_write_state(fz_context *ctx, pdf_document *doc, const pdf
 	opts->do_garbage = in_opts->do_garbage;
 	opts->do_linear = in_opts->do_linear;
 	opts->do_clean = in_opts->do_clean;
+	opts->do_decrypt = in_opts->do_decrypt;
 	opts->start = 0;
 	opts->main_xref_offset = INT_MIN;
 
@@ -2885,6 +2938,8 @@ pdf_parse_write_options(fz_context *ctx, pdf_write_options *opts, const char *ar
 		opts->do_incremental = fz_option_eq(val, "yes");
 	if (fz_has_option(ctx, args, "continue-on-error", &val))
 		opts->continue_on_error = fz_option_eq(val, "yes");
+	if (fz_has_option(ctx, args, "decrypt", &val))
+		opts->do_decrypt = fz_option_eq(val, "yes");
 	if (fz_has_option(ctx, args, "garbage", &val))
 	{
 		if (fz_option_eq(val, "yes"))
@@ -2965,6 +3020,12 @@ do_pdf_save_document(fz_context *ctx, pdf_document *doc, pdf_write_state *opts, 
 	fz_try(ctx)
 	{
 		initialise_write_state(ctx, doc, in_opts, opts);
+
+		/* Remove encryption dictionary if saving without encryption. */
+		if (opts->do_decrypt)
+		{
+			pdf_dict_del(ctx, pdf_trailer(ctx, doc), PDF_NAME(Encrypt));
+		}
 
 		/* Make sure any objects hidden in compressed streams have been loaded */
 		if (!opts->do_incremental)
@@ -3157,6 +3218,8 @@ void pdf_write_document(fz_context *ctx, pdf_document *doc, fz_output *out, pdf_
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't do incremental writes with garbage collection");
 	if (in_opts->do_incremental && in_opts->do_linear)
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't do incremental writes with linearisation");
+	if (in_opts->do_incremental && in_opts->do_decrypt)
+		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't do incremental writes with decryption");
 	if (pdf_has_unsaved_sigs(ctx, doc) && !out->as_stream)
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't write pdf that has unsaved sigs to a fz_output unless it supports fz_stream_from_output!");
 
@@ -3186,6 +3249,8 @@ void pdf_save_document(fz_context *ctx, pdf_document *doc, const char *filename,
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't do incremental writes with garbage collection");
 	if (in_opts->do_incremental && in_opts->do_linear)
 		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't do incremental writes with linearisation");
+	if (in_opts->do_incremental && in_opts->do_decrypt)
+		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't do incremental writes with decryption");
 
 	prepare_for_save(ctx, doc, in_opts);
 

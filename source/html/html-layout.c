@@ -72,15 +72,10 @@ static const char *fb2_default_css =
 "@page{margin:2em 2em}"
 "FictionBook{display:block;margin:0;line-height:1.2em}"
 "stylesheet,binary{display:none}"
-#ifdef FB2_FRONT_MATTER
 "description>*{display:none}"
 "description>title-info{display:block}"
 "description>title-info>*{display:none}"
-"description>title-info>annotation{display:block;page-break-before:always;page-break-after:always}"
 "description>title-info>coverpage{display:block;page-break-before:always;page-break-after:always}"
-#else
-"description{display:none}"
-#endif
 "body,section,title,subtitle,p,cite,epigraph,text-author,date,poem,stanza,v,empty-line{display:block}"
 "image{display:block}"
 "p>image{display:inline}"
@@ -398,17 +393,23 @@ static fz_image *load_html_image(fz_context *ctx, fz_archive *zip, const char *b
 	fz_var(img);
 	fz_var(buf);
 
-	fz_strlcpy(path, base_uri, sizeof path);
-	fz_strlcat(path, "/", sizeof path);
-	fz_strlcat(path, src, sizeof path);
-	fz_urldecode(path);
-	fz_cleanname(path);
-
 	fz_try(ctx)
 	{
-		buf = fz_read_archive_entry(ctx, zip, path);
+		if (!strncmp(src, "data:image/jpeg;base64,", 23))
+			buf = fz_new_buffer_from_base64(ctx, src+23, 0);
+		else if (!strncmp(src, "data:image/png;base64,", 22))
+			buf = fz_new_buffer_from_base64(ctx, src+22, 0);
+		else
+		{
+			fz_strlcpy(path, base_uri, sizeof path);
+			fz_strlcat(path, "/", sizeof path);
+			fz_strlcat(path, src, sizeof path);
+			fz_urldecode(path);
+			fz_cleanname(path);
+			buf = fz_read_archive_entry(ctx, zip, path);
+		}
 #if FZ_ENABLE_SVG
-		if (strstr(path, ".svg"))
+		if (strstr(src, ".svg"))
 			img = fz_new_image_from_svg(ctx, buf);
 		else
 #endif
@@ -635,8 +636,15 @@ static void insert_inline_box(fz_context *ctx, fz_html_box *box, fz_html_box *to
 }
 
 static fz_html_box *
-generate_boxes(fz_context *ctx, fz_xml *node, fz_html_box *top,
-		fz_css_match *up_match, int list_counter, int markup_dir, int markup_lang, struct genstate *g)
+generate_boxes(fz_context *ctx,
+	fz_xml *node,
+	fz_html_box *top,
+	fz_css_match *up_match,
+	int list_counter,
+	int section_depth,
+	int markup_dir,
+	int markup_lang,
+	struct genstate *g)
 {
 	fz_css_match match;
 	fz_html_box *box, *last_top;
@@ -747,6 +755,16 @@ generate_boxes(fz_context *ctx, fz_xml *node, fz_html_box *top,
 				if (display == DIS_BLOCK || display == DIS_INLINE_BLOCK)
 				{
 					top = insert_block_box(ctx, box, top);
+					if (g->is_fb2)
+					{
+						if (!strcmp(tag, "title") || !strcmp(tag, "subtitle"))
+							box->heading = fz_mini(section_depth, 6);
+					}
+					else
+					{
+						if (tag[0]=='h' && tag[1]>='1' && tag[1]<='6' && tag[2]==0)
+							box->heading = tag[1] - '0';
+					}
 				}
 				else if (display == DIS_LIST_ITEM)
 				{
@@ -793,9 +811,20 @@ generate_boxes(fz_context *ctx, fz_xml *node, fz_html_box *top,
 				if (fz_xml_down(node))
 				{
 					int child_counter = list_counter;
+					int child_section = section_depth;
 					if (!strcmp(tag, "ul") || !strcmp(tag, "ol"))
 						child_counter = 0;
-					last_top = generate_boxes(ctx, fz_xml_down(node), box, &match, child_counter, child_dir, child_lang, g);
+					if (!strcmp(tag, "section"))
+						++child_section;
+					last_top = generate_boxes(ctx,
+						fz_xml_down(node),
+						box,
+						&match,
+						child_counter,
+						child_section,
+						child_dir,
+						child_lang,
+						g);
 					if (last_top != box)
 						top = last_top;
 				}
@@ -2491,15 +2520,15 @@ fz_debug_html_flow(fz_context *ctx, fz_html_flow *flow, int level)
 		switch (flow->type) {
 		case FLOW_WORD: printf("word "); break;
 		case FLOW_SPACE: printf("space"); break;
-		case FLOW_SBREAK: printf("sbrk"); break;
-		case FLOW_SHYPHEN: printf("shy"); break;
+		case FLOW_SBREAK: printf("sbrk "); break;
+		case FLOW_SHYPHEN: printf("shy  "); break;
 		case FLOW_BREAK: printf("break"); break;
 		case FLOW_IMAGE: printf("image"); break;
 		case FLOW_ANCHOR: printf("anchor"); break;
 		}
 		printf(" y=%g x=%g w=%g", flow->y, flow->x, flow->w);
 		if (flow->type == FLOW_IMAGE)
-			printf(" h=%g\n", flow->h);
+			printf(" h=%g", flow->h);
 		if (flow->type == FLOW_WORD)
 			printf(" text='%s'", flow->content.text);
 		printf("\n");
@@ -2807,8 +2836,9 @@ fz_html *
 fz_parse_html(fz_context *ctx, fz_html_font_set *set, fz_archive *zip, const char *base_uri, fz_buffer *buf, const char *user_css)
 {
 	fz_xml_doc *xml;
-	fz_xml *root;
+	fz_xml *root, *node;
 	fz_html *html = NULL;
+	char *title;
 
 	fz_css_match match;
 	struct genstate g;
@@ -2884,9 +2914,29 @@ fz_parse_html(fz_context *ctx, fz_html_font_set *set, fz_archive *zip, const cha
 		fz_apply_css_style(ctx, g.set, &html->root->style, &match);
 		// TODO: transfer page margins out of this hacky box
 
-		generate_boxes(ctx, root, html->root, &match, 0, DEFAULT_DIR, FZ_LANG_UNSET, &g);
+		generate_boxes(ctx, root, html->root, &match, 0, 0, DEFAULT_DIR, FZ_LANG_UNSET, &g);
 
 		detect_directionality(ctx, g.pool, html->root);
+
+		if (g.is_fb2)
+		{
+			node = fz_xml_find(root, "FictionBook");
+			node = fz_xml_find_down(node, "description");
+			node = fz_xml_find_down(node, "title-info");
+			node = fz_xml_find_down(node, "book-title");
+			title = fz_xml_text(fz_xml_down(node));
+			if (title)
+				html->title = fz_pool_strdup(ctx, g.pool, title);
+		}
+		else
+		{
+			node = fz_xml_find(root, "html");
+			node = fz_xml_find_down(node, "head");
+			node = fz_xml_find_down(node, "title");
+			title = fz_xml_text(fz_xml_down(node));
+			if (title)
+				html->title = fz_pool_strdup(ctx, g.pool, title);
+		}
 	}
 	fz_always(ctx)
 	{
@@ -2901,4 +2951,142 @@ fz_parse_html(fz_context *ctx, fz_html_font_set *set, fz_archive *zip, const cha
 	}
 
 	return html;
+}
+
+struct outline_parser
+{
+	fz_html *html;
+	fz_buffer *cat;
+	fz_outline *head;
+	fz_outline **tail[6];
+	fz_outline **down[6];
+	int level[6];
+	int current;
+	int id;
+};
+
+static void
+cat_html_flow(fz_context *ctx, fz_buffer *cat, fz_html_flow *flow)
+{
+	while (flow)
+	{
+		switch (flow->type)
+		{
+		case FLOW_WORD:
+			fz_append_string(ctx, cat, flow->content.text);
+			break;
+		case FLOW_SPACE:
+		case FLOW_BREAK:
+			fz_append_byte(ctx, cat, ' ');
+			break;
+		default:
+			break;
+		}
+		flow = flow->next;
+	}
+}
+
+static void
+cat_html_box(fz_context *ctx, fz_buffer *cat, fz_html_box *box)
+{
+	while (box)
+	{
+		cat_html_flow(ctx, cat, box->flow_head);
+		cat_html_box(ctx, cat, box->down);
+		box = box->next;
+	}
+}
+
+static const char *
+cat_html_text(fz_context *ctx, struct outline_parser *x, fz_html_box *box)
+{
+	if (!x->cat)
+		x->cat = fz_new_buffer(ctx, 1024);
+	else
+		fz_clear_buffer(ctx, x->cat);
+
+	cat_html_flow(ctx, x->cat, box->flow_head);
+	cat_html_box(ctx, x->cat, box->down);
+
+	return fz_string_from_buffer(ctx, x->cat);
+}
+
+static void
+add_html_outline(fz_context *ctx, struct outline_parser *x, fz_html_box *box)
+{
+	fz_outline *node;
+	char buf[100];
+
+	node = fz_new_outline(ctx);
+	fz_try(ctx)
+	{
+		node->title = fz_strdup(ctx, cat_html_text(ctx, x, box));
+		if (!box->id)
+		{
+			fz_snprintf(buf, sizeof buf, "'%d", x->id++);
+			box->id = fz_pool_strdup(ctx, x->html->pool, buf);
+		}
+		node->uri = fz_asprintf(ctx, "#%s", box->id);
+		node->is_open = 1;
+	}
+	fz_catch(ctx)
+	{
+		fz_free(ctx, node);
+		fz_rethrow(ctx);
+	}
+
+	if (x->level[x->current] < box->heading && x->current < 6)
+	{
+		x->tail[x->current+1] = x->down[x->current];
+		x->current += 1;
+	}
+	else
+	{
+		while (x->current > 0 && x->level[x->current] > box->heading)
+		{
+			x->current -= 1;
+		}
+	}
+	x->level[x->current] = box->heading;
+
+	*(x->tail[x->current]) = node;
+	x->tail[x->current] = &node->next;
+	x->down[x->current] = &node->down;
+}
+
+static void
+load_html_outline(fz_context *ctx, struct outline_parser *x, fz_html_box *box)
+{
+	while (box)
+	{
+		if (box->heading)
+			add_html_outline(ctx, x, box);
+		if (box->down)
+			load_html_outline(ctx, x, box->down);
+		box = box->next;
+	}
+}
+
+fz_outline *
+fz_load_html_outline(fz_context *ctx, fz_html *html)
+{
+	struct outline_parser state;
+	state.html = html;
+	state.cat = NULL;
+	state.head = NULL;
+	state.tail[0] = &state.head;
+	state.down[0] = NULL;
+	state.level[0] = 99;
+	state.current = 0;
+	state.id = 1;
+	fz_try(ctx)
+		load_html_outline(ctx, &state, html->root);
+	fz_always(ctx)
+		fz_drop_buffer(ctx, state.cat);
+	fz_catch(ctx)
+	{
+		fz_drop_outline(ctx, state.head);
+		state.head = NULL;
+	}
+	return state.head;
 }

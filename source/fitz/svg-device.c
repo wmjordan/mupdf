@@ -56,6 +56,8 @@ struct svg_device_s
 	int *save_id;
 	int id;
 
+	int blend_bitmask;
+
 	int num_tiles;
 	int max_tiles;
 	tile *tiles;
@@ -472,27 +474,28 @@ svg_dev_text_span_as_paths_defs(fz_context *ctx, fz_device *dev, fz_text_span *s
 			/* Need to send this one */
 			fz_rect rect;
 			fz_path *path;
-			path = fz_outline_glyph(ctx, span->font, gid, fz_identity);
-			if (path)
+			out = start_def(ctx, sdev);
+			fz_write_printf(ctx, out, "<symbol id=\"font_%x_%x\">\n", fnt->id, gid);
+			if (fz_font_ft_face(ctx, span->font))
 			{
-				rect = fz_bound_path(ctx, path, NULL, fz_identity);
-				shift.e = -rect.x0;
-				shift.f = -rect.y0;
-				fz_transform_path(ctx, path, shift);
-				out = start_def(ctx, sdev);
-				fz_write_printf(ctx, out, "<symbol id=\"font_%x_%x\">\n", fnt->id, gid);
-				fz_write_printf(ctx, out, "<path");
-				svg_dev_path(ctx, sdev, path);
-				fz_write_printf(ctx, out, "/>\n");
-				fz_drop_path(ctx, path);
+				path = fz_outline_glyph(ctx, span->font, gid, fz_identity);
+				if (path)
+				{
+					rect = fz_bound_path(ctx, path, NULL, fz_identity);
+					shift.e = -rect.x0;
+					shift.f = -rect.y0;
+					fz_transform_path(ctx, path, shift);
+					fz_write_printf(ctx, out, "<path");
+					svg_dev_path(ctx, sdev, path);
+					fz_write_printf(ctx, out, "/>\n");
+					fz_drop_path(ctx, path);
+				}
 			}
-			else
+			else if (fz_font_t3_procs(ctx, span->font))
 			{
 				rect = fz_bound_glyph(ctx, span->font, gid, fz_identity);
 				shift.e = -rect.x0;
 				shift.f = -rect.y0;
-				out = start_def(ctx, sdev);
-				fz_write_printf(ctx, out, "<symbol id=\"font_%x_%x\">\n", fnt->id, gid);
 				fz_run_t3_glyph(ctx, span->font, gid, shift, dev);
 			}
 			fz_write_printf(ctx, out, "</symbol>\n");
@@ -1030,11 +1033,48 @@ svg_dev_begin_group(fz_context *ctx, fz_device *dev, fz_rect bbox, fz_colorspace
 	svg_device *sdev = (svg_device*)dev;
 	fz_output *out = sdev->out;
 
+	/* SVG only supports normal/multiply/screen/darken/lighten,
+	 * but we'll send them all, as the spec says that unrecognised
+	 * ones are treated as normal. */
+	static char *blend_names[] = {
+		"normal",	/* FZ_BLEND_NORMAL */
+		"multiply",	/* FZ_BLEND_MULTIPLY */
+		"screen",	/* FZ_BLEND_SCREEN */
+		"overlay",	/* FZ_BLEND_OVERLAY */
+		"darken",	/* FZ_BLEND_DARKEN */
+		"lighten",	/* FZ_BLEND_LIGHTEN */
+		"color_dodge",	/* FZ_BLEND_COLOR_DODGE */
+		"color_burn",	/* FZ_BLEND_COLOR_BURN */
+		"hard_light",	/* FZ_BLEND_HARD_LIGHT */
+		"soft_light",	/* FZ_BLEND_SOFT_LIGHT */
+		"difference",	/* FZ_BLEND_DIFFERENCE */
+		"exclusion",	/* FZ_BLEND_EXCLUSION */
+		"hue",		/* FZ_BLEND_HUE */
+		"saturation",	/* FZ_BLEND_SATURATION */
+		"color",	/* FZ_BLEND_COLOR */
+		"luminosity",	/* FZ_BLEND_LUMINOSITY */
+	};
+
+	if (blendmode < FZ_BLEND_NORMAL || blendmode > FZ_BLEND_LUMINOSITY)
+		blendmode = FZ_BLEND_NORMAL;
+	if (blendmode != FZ_BLEND_NORMAL && (sdev->blend_bitmask & (1<<blendmode)) == 0)
+	{
+		sdev->blend_bitmask |= (1<<blendmode);
+		out = start_def(ctx, sdev);
+		fz_write_printf(ctx, out,
+				"<filter id=\"blend_%d\"><feBlend mode=\"%s\" in2=\"BackgroundImage\" in=\"SourceGraphic\"/></filter>\n",
+				blendmode, blend_names[blendmode]);
+		out = end_def(ctx, sdev);
+	}
+
 	/* SVG 1.1 doesn't support adequate blendmodes/knockout etc, so just ignore it for now */
 	if (alpha == 1)
-		fz_write_printf(ctx, out, "<g>\n");
+		fz_write_printf(ctx, out, "<g");
 	else
-		fz_write_printf(ctx, out, "<g opacity=\"%g\">\n", alpha);
+		fz_write_printf(ctx, out, "<g opacity=\"%g\"", alpha);
+	if (blendmode != FZ_BLEND_NORMAL)
+		fz_write_printf(ctx, out, " filter=\"url(#blend_%d)\"", blendmode);
+	fz_write_printf(ctx, out, ">\n");
 }
 
 static void
@@ -1195,6 +1235,7 @@ svg_dev_close_device(fz_context *ctx, fz_device *dev)
 	if (sdev->save_id)
 		*sdev->save_id = sdev->id;
 
+	fz_write_printf(ctx, out, "</g>\n");
 	fz_write_printf(ctx, out, "</svg>\n");
 }
 
@@ -1272,6 +1313,7 @@ fz_device *fz_new_svg_device(fz_context *ctx, fz_output *out, float page_width, 
 		"xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" "
 		"width=\"%gpt\" height=\"%gpt\" viewBox=\"0 0 %g %g\">\n",
 		page_width, page_height, page_width, page_height);
+	fz_write_printf(ctx, out, "<g enable-background=\"new\">\n");
 
 	return (fz_device*)dev;
 }

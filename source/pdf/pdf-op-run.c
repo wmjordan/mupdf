@@ -106,6 +106,7 @@ begin_softmask(fz_context *ctx, pdf_run_processor *pr, softmask_save *save)
 	fz_matrix tos_save[2], save_ctm;
 	fz_matrix mask_matrix;
 	fz_colorspace *mask_colorspace;
+	int saved_blendmode;
 
 	save->softmask = softmask;
 	if (softmask == NULL)
@@ -135,13 +136,19 @@ begin_softmask(fz_context *ctx, pdf_run_processor *pr, softmask_save *save)
 	if (gstate->luminosity && !mask_colorspace)
 		mask_colorspace = fz_keep_colorspace(ctx, fz_device_gray(ctx));
 
+	saved_blendmode = gstate->blendmode;
+
 	fz_try(ctx)
 	{
 		fz_begin_mask(ctx, pr->dev, mask_bbox, gstate->luminosity, mask_colorspace, gstate->softmask_bc, &gstate->fill.color_params);
+		gstate->blendmode = 0;
 		pdf_run_xobject(ctx, pr, softmask, save->page_resources, fz_identity, 1);
 	}
 	fz_always(ctx)
+	{
 		fz_drop_colorspace(ctx, mask_colorspace);
+		gstate->blendmode = saved_blendmode;
+	}
 	fz_catch(ctx)
 	{
 		fz_rethrow_if(ctx, FZ_ERROR_TRYLATER);
@@ -2117,7 +2124,7 @@ static void pdf_run_rg(fz_context *ctx, pdf_processor *proc, float r, float g, f
 
 /* shadings, images, xobjects */
 
-static void pdf_run_BI(fz_context *ctx, pdf_processor *proc, fz_image *image)
+static void pdf_run_BI(fz_context *ctx, pdf_processor *proc, fz_image *image, const char *colorspace)
 {
 	pdf_run_processor *pr = (pdf_run_processor *)proc;
 	pdf_show_image(ctx, pr, image);
@@ -2155,7 +2162,7 @@ static void pdf_run_BMC(fz_context *ctx, pdf_processor *proc, const char *tag)
 	pdf_run_processor *pr = (pdf_run_processor *)proc;
 
 	if (!tag)
-		tag = "UnnamedLayer";
+		tag = "Untitled";
 
 	fz_begin_layer(ctx, pr->dev, tag);
 }
@@ -2165,12 +2172,12 @@ static void pdf_run_BDC(fz_context *ctx, pdf_processor *proc, const char *tag, p
 	pdf_run_processor *pr = (pdf_run_processor *)proc;
 	const char *str;
 
-	if (!tag || strcmp(tag, "OC"))
-		return;
+	if (!tag)
+		tag = "Untitled";
 
-	str = pdf_dict_get_string(ctx, cooked, PDF_NAME(Name), NULL);
+	str = pdf_dict_get_text_string(ctx, cooked, PDF_NAME(Name));
 	if (strlen(str) == 0)
-		str = "UnnamedLayer";
+		str = tag;
 
 	fz_begin_layer(ctx, pr->dev, str);
 }

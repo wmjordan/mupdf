@@ -2320,10 +2320,16 @@ static void ffi_Image_toPixmap(js_State *J)
 {
 	fz_context *ctx = js_getcontext(J);
 	fz_image *image = js_touserdata(J, 0, "fz_image");
+	fz_matrix matrix_, *matrix = NULL;
 	fz_pixmap *pixmap = NULL;
 
+	if (js_isnumber(J, 1) && js_isnumber(J, 2)) {
+		matrix_ = fz_scale(js_tonumber(J, 1), js_tonumber(J, 2));
+		matrix = &matrix_;
+	}
+
 	fz_try(ctx)
-		pixmap = fz_get_pixmap_from_image(ctx, image, NULL, NULL, NULL, NULL);
+		pixmap = fz_get_pixmap_from_image(ctx, image, NULL, matrix, NULL, NULL);
 	fz_catch(ctx)
 		rethrow(J);
 
@@ -3277,11 +3283,26 @@ static void ffi_PDFDocument_addImage(js_State *J)
 	pdf_obj *ind = NULL;
 
 	fz_try(ctx)
-		ind = pdf_add_image(ctx, pdf, image, 0);
+		ind = pdf_add_image(ctx, pdf, image);
 	fz_catch(ctx)
 		rethrow(J);
 
 	ffi_pushobj(J, ind);
+}
+
+static void ffi_PDFDocument_loadImage(js_State *J)
+{
+	fz_context *ctx = js_getcontext(J);
+	pdf_document *pdf = js_touserdata(J, 0, "pdf_document");
+	pdf_obj *obj = ffi_toobj(J, pdf, 1);
+	fz_image *img = NULL;
+
+	fz_try(ctx)
+		img = pdf_load_image(ctx, pdf, obj);
+	fz_catch(ctx)
+		rethrow(J);
+
+	ffi_pushimage_own(J, img);
 }
 
 static void ffi_PDFDocument_addSimpleFont(js_State *J)
@@ -3671,18 +3692,18 @@ static void ffi_PDFObject_toString(js_State *J)
 	char *s = NULL;
 	int n;
 
-	fz_var(s);
-
-	fz_try(ctx) {
-		n = pdf_sprint_obj(ctx, NULL, 0, obj, tight);
-		s = fz_malloc(ctx, n+1);
-		pdf_sprint_obj(ctx, s, n+1, obj, tight);
-		js_pushstring(J, s);
-	} fz_always(ctx) {
-		fz_free(ctx, s);
-	} fz_catch(ctx) {
+	fz_try(ctx)
+		s = pdf_sprint_obj(ctx, NULL, 0, &n, obj, tight);
+	fz_catch(ctx)
 		rethrow(J);
+
+	if (js_try(J)) {
+		fz_free(ctx, s);
+		js_throw(J);
 	}
+	js_pushstring(J, s);
+	js_endtry(J);
+	fz_free(ctx, s);
 }
 
 static void ffi_PDFObject_valueOf(js_State *J)
@@ -3866,7 +3887,6 @@ static void ffi_PDFObject_asString(js_State *J)
 		rethrow(J);
 
 	js_pushstring(J, string);
-	js_endtry(J);
 }
 
 static void ffi_PDFObject_asByteString(js_State *J)
@@ -4711,7 +4731,7 @@ int murun_main(int argc, char **argv)
 		// Pixmap.scale()
 
 		jsB_propfun(J, "Pixmap.saveAsPNG", ffi_Pixmap_saveAsPNG, 1);
-		// Pixmap.saveAsPNM, PAM, TGA, PWG, PCL
+		// Pixmap.saveAsPNM, PAM, PWG, PCL
 
 		// Pixmap.halftone() -> Bitmap
 		// Pixmap.md5()
@@ -4741,6 +4761,7 @@ int murun_main(int argc, char **argv)
 		jsB_propfun(J, "PDFDocument.addCJKFont", ffi_PDFDocument_addCJKFont, 4);
 		jsB_propfun(J, "PDFDocument.addFont", ffi_PDFDocument_addFont, 1);
 		jsB_propfun(J, "PDFDocument.addImage", ffi_PDFDocument_addImage, 1);
+		jsB_propfun(J, "PDFDocument.loadImage", ffi_PDFDocument_loadImage, 1);
 		jsB_propfun(J, "PDFDocument.addPage", ffi_PDFDocument_addPage, 4);
 		jsB_propfun(J, "PDFDocument.insertPage", ffi_PDFDocument_insertPage, 2);
 		jsB_propfun(J, "PDFDocument.deletePage", ffi_PDFDocument_deletePage, 1);
