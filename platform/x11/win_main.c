@@ -1269,7 +1269,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShow
 	MSG msg;
 	int code;
 	fz_context *ctx;
-	int bps = 0;
+	int kbps = 0;
 	int displayRes = get_system_dpi();
 	int c;
 
@@ -1290,9 +1290,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShow
 		case 'C':
 			c = strtol(fz_optarg, NULL, 16);
 			gapp.tint = 1;
-			gapp.tint_r = (c >> 16) & 255;
-			gapp.tint_g = (c >> 8) & 255;
-			gapp.tint_b = (c) & 255;
+			gapp.tint_white = c;
 			break;
 		case 'p': password = fz_optarg; break;
 		case 'r': displayRes = fz_atoi(fz_optarg); break;
@@ -1301,7 +1299,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShow
 		case 'W': gapp.layout_w = fz_atoi(fz_optarg); break;
 		case 'H': gapp.layout_h = fz_atoi(fz_optarg); break;
 		case 'S': gapp.layout_em = fz_atoi(fz_optarg); break;
-		case 'b': bps = (fz_optarg && *fz_optarg) ? fz_atoi(fz_optarg) : 4096; break;
+		case 'b': kbps = fz_atoi(fz_optarg); break;
 		case 'U': gapp.layout_css = fz_optarg; break;
 		case 'X': gapp.layout_use_doc_css = 0; break;
 		default: usage(argv[0]);
@@ -1331,8 +1329,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShow
 	if (fz_optind < argc)
 		gapp.pageno = atoi(argv[fz_optind++]);
 
-	if (bps)
-		pdfapp_open_progressive(&gapp, filename, 0, bps);
+	if (kbps)
+		pdfapp_open_progressive(&gapp, filename, 0, kbps);
 	else
 		pdfapp_open(&gapp, filename, 0);
 

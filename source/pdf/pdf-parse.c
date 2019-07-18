@@ -23,6 +23,21 @@ pdf_to_rect(fz_context *ctx, pdf_obj *array)
 	}
 }
 
+fz_quad
+pdf_to_quad(fz_context *ctx, pdf_obj *array, int offset)
+{
+	fz_quad q;
+	q.ul.x = pdf_array_get_real(ctx, array, offset+0);
+	q.ul.y = pdf_array_get_real(ctx, array, offset+1);
+	q.ur.x = pdf_array_get_real(ctx, array, offset+2);
+	q.ur.y = pdf_array_get_real(ctx, array, offset+3);
+	q.ll.x = pdf_array_get_real(ctx, array, offset+4);
+	q.ll.y = pdf_array_get_real(ctx, array, offset+5);
+	q.lr.x = pdf_array_get_real(ctx, array, offset+6);
+	q.lr.y = pdf_array_get_real(ctx, array, offset+7);
+	return q;
+}
+
 fz_matrix
 pdf_to_matrix(fz_context *ctx, pdf_obj *array)
 {
@@ -219,13 +234,13 @@ pdf_new_utf8_from_pdf_string(fz_context *ctx, const char *ssrcptr, size_t srclen
 	else
 	{
 		for (i = 0; i < srclen; i++)
-			dstlen += fz_runelen(pdf_doc_encoding[srcptr[i]]);
+			dstlen += fz_runelen(fz_unicode_from_pdf_doc_encoding[srcptr[i]]);
 
 		dstptr = dst = fz_malloc(ctx, dstlen + 1);
 
 		for (i = 0; i < srclen; i++)
 		{
-			ucs = pdf_doc_encoding[srcptr[i]];
+			ucs = fz_unicode_from_pdf_doc_encoding[srcptr[i]];
 			dstptr += fz_runetochar(dstptr, ucs);
 		}
 	}

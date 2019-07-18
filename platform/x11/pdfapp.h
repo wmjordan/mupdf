@@ -77,7 +77,9 @@ struct pdfapp_s
 	int grayscale;
 	fz_colorspace *colorspace;
 	int invert;
-	int tint, tint_r, tint_g, tint_b;
+	int tint, tint_white;
+	int useicc;
+	int useseparations;
 
 	/* presentation mode */
 	int presentation_mode;
@@ -99,6 +101,9 @@ struct pdfapp_s
 	fz_link *page_links;
 	int errored;
 	int incomplete;
+
+	/* separations */
+	fz_separations *seps;
 
 	/* snapback history */
 	int hist[256];
@@ -151,7 +156,7 @@ struct pdfapp_s
 void pdfapp_init(fz_context *ctx, pdfapp_t *app);
 void pdfapp_setresolution(pdfapp_t *app, int res);
 void pdfapp_open(pdfapp_t *app, char *filename, int reload);
-void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int bps);
+void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps);
 void pdfapp_close(pdfapp_t *app);
 int pdfapp_preclose(pdfapp_t *app);
 void pdfapp_reloadfile(pdfapp_t *app);

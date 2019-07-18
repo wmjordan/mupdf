@@ -80,11 +80,11 @@ static inline int fz_idiv_up(int a, int b)
 #else
 
 #define AA_SCALE(scale, x) ((x * scale) >> 8)
-#define fz_aa_hscale (ctx->aa->hscale)
-#define fz_aa_vscale (ctx->aa->vscale)
-#define fz_aa_scale (ctx->aa->scale)
-#define fz_aa_bits (ctx->aa->bits)
-#define fz_aa_text_bits (ctx->aa->text_bits)
+#define fz_aa_hscale (ctx->aa.hscale)
+#define fz_aa_vscale (ctx->aa.vscale)
+#define fz_aa_scale (ctx->aa.scale)
+#define fz_aa_bits (ctx->aa.bits)
+#define fz_aa_text_bits (ctx->aa.text_bits)
 #define fz_rasterizer_aa_hscale(ras) ((ras)->aa.hscale)
 #define fz_rasterizer_aa_vscale(ras) ((ras)->aa.vscale)
 #define fz_rasterizer_aa_scale(ras) ((ras)->aa.scale)
@@ -99,17 +99,6 @@ static inline int fz_idiv_up(int a, int b)
  * antialiasing is done. If it is undefined to we will leave the antialiasing
  * accuracy as a run time choice.
  */
-struct fz_aa_context_s
-{
-	int hscale;
-	int vscale;
-	int scale;
-	int bits;
-	int text_bits;
-	float min_line_width;
-};
-
-/* Overprint bitmap */
 
 struct fz_overprint_s
 {
@@ -140,10 +129,6 @@ static int inline fz_overprint_required(const fz_overprint *op)
 
 	return 0;
 }
-
-/*
- * Scan converter
- */
 
 typedef struct fz_rasterizer_s fz_rasterizer;
 
@@ -440,10 +425,6 @@ int fz_flatten_fill_path(fz_context *ctx, fz_rasterizer *rast, const fz_path *pa
 int fz_flatten_stroke_path(fz_context *ctx, fz_rasterizer *rast, const fz_path *path, const fz_stroke_state *stroke, fz_matrix ctm, float flatness, float linewidth, const fz_irect *irect, fz_irect *bounds);
 
 fz_irect *fz_bound_path_accurate(fz_context *ctx, fz_irect *bbox, const fz_irect *scissor, const fz_path *path, const fz_stroke_state *stroke, fz_matrix ctm, float flatness, float linewidth);
-
-/*
- * Plotting functions.
- */
 
 typedef void (fz_solid_color_painter_t)(unsigned char * FZ_RESTRICT dp, int n, int w, const unsigned char * FZ_RESTRICT color, int da, const fz_overprint *eop);
 

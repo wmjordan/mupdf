@@ -5,6 +5,58 @@
 #include <float.h>
 #include <string.h>
 
+/* Simple layout structure */
+
+fz_layout_block *fz_new_layout(fz_context *ctx)
+{
+	fz_pool *pool = fz_new_pool(ctx);
+	fz_layout_block *block;
+	fz_try(ctx)
+	{
+		block = fz_pool_alloc(ctx, pool, sizeof (fz_layout_block));
+		block->pool = pool;
+		block->head = NULL;
+		block->tailp = &block->head;
+	}
+	fz_catch(ctx)
+	{
+		fz_drop_pool(ctx, pool);
+		fz_rethrow(ctx);
+	}
+	return block;
+}
+
+void fz_drop_layout(fz_context *ctx, fz_layout_block *block)
+{
+	if (block)
+		fz_drop_pool(ctx, block->pool);
+}
+
+void fz_add_layout_line(fz_context *ctx, fz_layout_block *block, float x, float y, float h, const char *p)
+{
+	fz_layout_line *line = fz_pool_alloc(ctx, block->pool, sizeof (fz_layout_line));
+	line->x = x;
+	line->y = y;
+	line->h = h;
+	line->p = p;
+	line->text = NULL;
+	line->next = NULL;
+	*block->tailp = line;
+	block->tailp = &line->next;
+	block->text_tailp = &line->text;
+}
+
+void fz_add_layout_char(fz_context *ctx, fz_layout_block *block, float x, float w, const char *p)
+{
+	fz_layout_char *ch = fz_pool_alloc(ctx, block->pool, sizeof (fz_layout_char));
+	ch->x = x;
+	ch->w = w;
+	ch->p = p;
+	ch->next = NULL;
+	*block->text_tailp = ch;
+	block->text_tailp = &ch->next;
+}
+
 /* Extract text into blocks and lines. */
 
 #define LINE_DIST 0.9f
@@ -29,11 +81,20 @@ struct fz_stext_device_s
 
 const char *fz_stext_options_usage =
 	"Text output options:\n"
+	"\tinhibit-spaces: don't add spaces between gaps in the text\n"
+	"\tpreserve-images: keep images in output\n"
 	"\tpreserve-ligatures: do not expand ligatures into constituent characters\n"
 	"\tpreserve-whitespace: do not convert all whitespace into space characters\n"
-	"\tpreserve-images: keep images in output\n"
 	"\n";
 
+/*
+	Create an empty text page.
+
+	The text page is filled out by the text device to contain the blocks
+	and lines of text on the page.
+
+	mediabox: optional mediabox information.
+*/
 fz_stext_page *
 fz_new_stext_page(fz_context *ctx, fz_rect mediabox)
 {
@@ -384,7 +445,7 @@ fz_add_stext_char_imp(fz_context *ctx, fz_stext_device *dev, fz_font *font, int 
 	}
 
 	/* Add synthetic space */
-	if (add_space)
+	if (add_space && !(dev->flags & FZ_STEXT_INHIBIT_SPACES))
 		add_char_to_line(ctx, page, cur_line, trm, font, size, ' ', &dev->pen, &p);
 
 	add_char_to_line(ctx, page, cur_line, trm, font, size, c, &p, &q);
@@ -501,7 +562,7 @@ fz_stext_extract(fz_context *ctx, fz_stext_device *dev, fz_text_span *span, fz_m
 
 static void
 fz_stext_fill_text(fz_context *ctx, fz_device *dev, const fz_text *text, fz_matrix ctm,
-	fz_colorspace *colorspace, const float *color, float alpha, const fz_color_params *color_params)
+	fz_colorspace *colorspace, const float *color, float alpha, fz_color_params color_params)
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
@@ -516,7 +577,7 @@ fz_stext_fill_text(fz_context *ctx, fz_device *dev, const fz_text *text, fz_matr
 
 static void
 fz_stext_stroke_text(fz_context *ctx, fz_device *dev, const fz_text *text, const fz_stroke_state *stroke, fz_matrix ctm,
-	fz_colorspace *colorspace, const float *color, float alpha, const fz_color_params *color_params)
+	fz_colorspace *colorspace, const float *color, float alpha, fz_color_params color_params)
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 	fz_text_span *span;
@@ -574,7 +635,7 @@ fz_stext_ignore_text(fz_context *ctx, fz_device *dev, const fz_text *text, fz_ma
 /* Images and shadings */
 
 static void
-fz_stext_fill_image(fz_context *ctx, fz_device *dev, fz_image *img, fz_matrix ctm, float alpha, const fz_color_params *color_params)
+fz_stext_fill_image(fz_context *ctx, fz_device *dev, fz_image *img, fz_matrix ctm, float alpha, fz_color_params color_params)
 {
 	fz_stext_device *tdev = (fz_stext_device*)dev;
 
@@ -587,13 +648,13 @@ fz_stext_fill_image(fz_context *ctx, fz_device *dev, fz_image *img, fz_matrix ct
 
 static void
 fz_stext_fill_image_mask(fz_context *ctx, fz_device *dev, fz_image *img, fz_matrix ctm,
-		fz_colorspace *cspace, const float *color, float alpha, const fz_color_params *color_params)
+		fz_colorspace *cspace, const float *color, float alpha, fz_color_params color_params)
 {
 	fz_stext_fill_image(ctx, dev, img, ctm, alpha, color_params);
 }
 
 static fz_image *
-fz_new_image_from_shade(fz_context *ctx, fz_shade *shade, fz_matrix *in_out_ctm, const fz_color_params *color_params, fz_rect scissor)
+fz_new_image_from_shade(fz_context *ctx, fz_shade *shade, fz_matrix *in_out_ctm, fz_color_params color_params, fz_rect scissor)
 {
 	fz_matrix ctm = *in_out_ctm;
 	fz_pixmap *pix;
@@ -630,7 +691,7 @@ fz_new_image_from_shade(fz_context *ctx, fz_shade *shade, fz_matrix *in_out_ctm,
 }
 
 static void
-fz_stext_fill_shade(fz_context *ctx, fz_device *dev, fz_shade *shade, fz_matrix ctm, float alpha, const fz_color_params *color_params)
+fz_stext_fill_shade(fz_context *ctx, fz_device *dev, fz_shade *shade, fz_matrix ctm, float alpha, fz_color_params color_params)
 {
 	fz_matrix local_ctm = ctm;
 	fz_rect scissor = fz_device_current_scissor(ctx, dev);
@@ -681,6 +742,9 @@ fz_stext_drop_device(fz_context *ctx, fz_device *dev)
 	fz_drop_text(ctx, tdev->lasttext);
 }
 
+/*
+	Parse stext device options from a comma separated key-value string.
+*/
 fz_stext_options *
 fz_parse_stext_options(fz_context *ctx, fz_stext_options *opts, const char *string)
 {
@@ -694,10 +758,27 @@ fz_parse_stext_options(fz_context *ctx, fz_stext_options *opts, const char *stri
 		opts->flags |= FZ_STEXT_PRESERVE_WHITESPACE;
 	if (fz_has_option(ctx, string, "preserve-images", &val) && fz_option_eq(val, "yes"))
 		opts->flags |= FZ_STEXT_PRESERVE_IMAGES;
+	if (fz_has_option(ctx, string, "inhibit-spaces", &val) && fz_option_eq(val, "yes"))
+		opts->flags |= FZ_STEXT_INHIBIT_SPACES;
 
 	return opts;
 }
 
+/*
+	Create a device to extract the text on a page.
+
+	Gather the text on a page into blocks and lines.
+
+	The reading order is taken from the order the text is drawn in the
+	source file, so may not be accurate.
+
+	page: The text page to which content should be added. This will
+	usually be a newly created (empty) text page, but it can be one
+	containing data already (for example when merging multiple pages,
+	or watermarking).
+
+	options: Options to configure the stext device.
+*/
 fz_device *
 fz_new_stext_device(fz_context *ctx, fz_stext_page *page, const fz_stext_options *opts)
 {
@@ -714,12 +795,13 @@ fz_new_stext_device(fz_context *ctx, fz_stext_page *page, const fz_stext_options
 
 	if (opts && (opts->flags & FZ_STEXT_PRESERVE_IMAGES))
 	{
-		dev->super.hints |= FZ_MAINTAIN_CONTAINER_STACK;
 		dev->super.fill_shade = fz_stext_fill_shade;
 		dev->super.fill_image = fz_stext_fill_image;
 		dev->super.fill_image_mask = fz_stext_fill_image_mask;
 	}
 
+	if (opts)
+		dev->flags = opts->flags;
 	dev->page = page;
 	dev->pen.x = 0;
 	dev->pen.y = 0;

@@ -18,7 +18,7 @@ pdf_load_jpx_imp(fz_context *ctx, pdf_document *doc, pdf_obj *rdb, pdf_obj *dict
 
 		if (tile->n != 1)
 		{
-			fz_pixmap *gray = fz_convert_pixmap(ctx, tile, fz_device_gray(ctx), NULL, NULL, fz_default_color_params(ctx), 0);
+			fz_pixmap *gray = fz_convert_pixmap(ctx, tile, fz_device_gray(ctx), NULL, NULL, fz_default_color_params, 0);
 			fz_drop_pixmap(ctx, tile);
 			tile = gray;
 		}
@@ -115,7 +115,7 @@ pdf_load_image_imp(fz_context *ctx, pdf_document *doc, pdf_obj *rdb, pdf_obj *di
 			for (i = 0; i < n * 2; i++)
 				decode[i] = pdf_array_get_real(ctx, obj, i);
 		}
-		else if (fz_colorspace_is_lab(ctx, colorspace) || fz_colorspace_is_lab_icc(ctx, colorspace))
+		else if (fz_colorspace_is_lab(ctx, colorspace))
 		{
 			decode[0] = 0;
 			decode[1] = 100;
@@ -308,7 +308,7 @@ pdf_add_image(fz_context *ctx, pdf_document *doc, fz_image *image)
 	pdf_obj *imref = NULL;
 	fz_compressed_buffer *cbuffer;
 	unsigned char digest[16];
-	int n;
+	int i, n;
 
 	/* If we can maintain compression, do so */
 	cbuffer = fz_compressed_image_buffer(ctx, image);
@@ -400,6 +400,13 @@ pdf_add_image(fz_context *ctx, pdf_document *doc, fz_image *image)
 				pdf_dict_del(ctx, imobj, PDF_NAME(DecodeParms));
 
 			buffer = fz_keep_buffer(ctx, cbuffer->buffer);
+
+			if (image->use_decode)
+			{
+				pdf_obj *ary = pdf_dict_put_array(ctx, imobj, PDF_NAME(Decode), image->n * 2);
+				for (i = 0; i < image->n * 2; ++i)
+					pdf_array_push_real(ctx, ary, image->decode[i]);
+			}
 		}
 		else
 		{
@@ -478,9 +485,10 @@ raw_or_unknown_compression:
 					int basen;
 					pdf_obj *arr;
 
-					lookup = fz_indexed_colorspace_palette(ctx, cs, &high);
-					basecs = fz_colorspace_base(ctx, cs);
-					basen = fz_colorspace_n(ctx, basecs);
+					basecs = cs->u.indexed.base;
+					high = cs->u.indexed.high;
+					lookup = cs->u.indexed.lookup;
+					basen = basecs->n;
 
 					arr = pdf_dict_put_array(ctx, imobj, PDF_NAME(ColorSpace), 4);
 

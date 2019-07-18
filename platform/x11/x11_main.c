@@ -198,6 +198,11 @@ static void winopen(void)
 	XWMHints *wmhints;
 	XClassHint *classhint;
 
+#ifdef HAVE_CURL
+	if (!XInitThreads())
+		fz_throw(gapp.ctx, FZ_ERROR_GENERIC, "cannot initialize X11 for multi-threading");
+#endif
+
 	xdpy = XOpenDisplay(NULL);
 	if (!xdpy)
 		fz_throw(gapp.ctx, FZ_ERROR_GENERIC, "cannot open display");
@@ -868,7 +873,7 @@ int main(int argc, char **argv)
 	struct timeval now;
 	struct timeval *timeout;
 	struct timeval tmo_advance_delay;
-	int bps = 0;
+	int kbps = 0;
 
 	ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
 	if (!ctx)
@@ -886,9 +891,7 @@ int main(int argc, char **argv)
 		case 'C':
 			c = strtol(fz_optarg, NULL, 16);
 			gapp.tint = 1;
-			gapp.tint_r = (c >> 16) & 255;
-			gapp.tint_g = (c >> 8) & 255;
-			gapp.tint_b = (c) & 255;
+			gapp.tint_white = c;
 			break;
 		case 'p': password = fz_optarg; break;
 		case 'r': resolution = atoi(fz_optarg); break;
@@ -899,7 +902,7 @@ int main(int argc, char **argv)
 		case 'S': gapp.layout_em = fz_atof(fz_optarg); break;
 		case 'U': gapp.layout_css = fz_optarg; break;
 		case 'X': gapp.layout_use_doc_css = 0; break;
-		case 'b': bps = (fz_optarg && *fz_optarg) ? fz_atoi(fz_optarg) : 4096; break;
+		case 'b': kbps = fz_atoi(fz_optarg); break;
 		default: usage(argv[0]);
 		}
 	}
@@ -932,8 +935,8 @@ int main(int argc, char **argv)
 	tmo_at.tv_usec = 0;
 	timeout = NULL;
 
-	if (bps)
-		pdfapp_open_progressive(&gapp, filename, 0, bps);
+	if (kbps)
+		pdfapp_open_progressive(&gapp, filename, 0, kbps);
 	else
 		pdfapp_open(&gapp, filename, 0);
 

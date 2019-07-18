@@ -1,28 +1,12 @@
 #ifndef MUPDF_PDF_XREF_H
 #define MUPDF_PDF_XREF_H
 
-/*
-	pdf_create_object: Allocate a slot in the xref table and return a fresh unused object number.
-*/
 int pdf_create_object(fz_context *ctx, pdf_document *doc);
 
-/*
-	pdf_delete_object: Remove object from xref table, marking the slot as free.
-*/
 void pdf_delete_object(fz_context *ctx, pdf_document *doc, int num);
 
-/*
-	pdf_update_object: Replace object in xref table with the passed in object.
-*/
 void pdf_update_object(fz_context *ctx, pdf_document *doc, int num, pdf_obj *obj);
 
-/*
-	pdf_update_stream: Replace stream contents for object in xref table with the passed in buffer.
-
-	The buffer contents must match the /Filter setting if 'compressed' is true.
-	If 'compressed' is false, the /Filter and /DecodeParms entries are deleted.
-	The /Length entry is updated.
-*/
 void pdf_update_stream(fz_context *ctx, pdf_document *doc, pdf_obj *ref, fz_buffer *buf, int compressed);
 
 pdf_obj *pdf_add_object(fz_context *ctx, pdf_document *doc, pdf_obj *obj);
@@ -31,10 +15,6 @@ pdf_obj *pdf_add_stream(fz_context *ctx, pdf_document *doc, fz_buffer *buf, pdf_
 
 pdf_obj *pdf_add_new_dict(fz_context *ctx, pdf_document *doc, int initial);
 pdf_obj *pdf_add_new_array(fz_context *ctx, pdf_document *doc, int initial);
-
-/*
- * xref and object / stream api
- */
 
 typedef struct pdf_xref_entry_s pdf_xref_entry;
 
@@ -77,6 +57,7 @@ int pdf_count_objects(fz_context *ctx, pdf_document *doc);
 pdf_obj *pdf_resolve_indirect(fz_context *ctx, pdf_obj *ref);
 pdf_obj *pdf_resolve_indirect_chain(fz_context *ctx, pdf_obj *ref);
 pdf_obj *pdf_load_object(fz_context *ctx, pdf_document *doc, int num);
+pdf_obj *pdf_load_unencrypted_object(fz_context *ctx, pdf_document *doc, int num);
 
 fz_buffer *pdf_load_raw_stream_number(fz_context *ctx, pdf_document *doc, int num);
 fz_buffer *pdf_load_raw_stream(fz_context *ctx, pdf_obj *ref);
@@ -93,7 +74,6 @@ void pdf_load_compressed_inline_image(fz_context *ctx, pdf_document *doc, pdf_ob
 fz_stream *pdf_open_stream_with_offset(fz_context *ctx, pdf_document *doc, int num, pdf_obj *dict, int64_t stm_ofs);
 fz_stream *pdf_open_compressed_stream(fz_context *ctx, fz_compressed_buffer *);
 fz_stream *pdf_open_contents_stream(fz_context *ctx, pdf_document *doc, pdf_obj *obj);
-fz_buffer *pdf_load_stream_truncated(fz_context *ctx, pdf_document *doc, int num, int *truncated);
 
 pdf_obj *pdf_trailer(fz_context *ctx, pdf_document *doc);
 void pdf_set_populating_xref_trailer(fz_context *ctx, pdf_document *doc, pdf_obj *trailer);
@@ -101,6 +81,7 @@ int pdf_xref_len(fz_context *ctx, pdf_document *doc);
 pdf_xref_entry *pdf_get_populating_xref_entry(fz_context *ctx, pdf_document *doc, int i);
 pdf_xref_entry *pdf_get_xref_entry(fz_context *ctx, pdf_document *doc, int i);
 void pdf_replace_xref(fz_context *ctx, pdf_document *doc, pdf_xref_entry *entries, int n);
+void pdf_forget_xref(fz_context *ctx, pdf_document *doc);
 void pdf_xref_ensure_incremental_object(fz_context *ctx, pdf_document *doc, int num);
 int pdf_xref_is_incremental(fz_context *ctx, pdf_document *doc, int num);
 void pdf_xref_store_unsaved_signature(fz_context *ctx, pdf_document *doc, pdf_obj *field, pdf_pkcs7_signer *signer);

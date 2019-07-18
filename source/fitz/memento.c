@@ -39,7 +39,7 @@
 #include "memory_.h"
 int atexit(void (*)(void));
 #else
-#include "memento.h"
+#include "mupdf/memento.h"
 #include <stdio.h>
 #endif
 #ifndef _MSC_VER
@@ -49,6 +49,7 @@ int atexit(void (*)(void));
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #ifdef __ANDROID__
 #define MEMENTO_ANDROID

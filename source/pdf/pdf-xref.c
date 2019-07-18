@@ -1,6 +1,5 @@
 #include "mupdf/fitz.h"
 #include "mupdf/pdf.h"
-#include "pdf-imp.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -86,7 +85,7 @@ extend_xref_index(fz_context *ctx, pdf_document *doc, int newlen)
 {
 	int i;
 
-	doc->xref_index = fz_resize_array(ctx, doc->xref_index, newlen, sizeof(int));
+	doc->xref_index = fz_realloc_array(ctx, doc->xref_index, newlen, int);
 	for (i = doc->max_xref_len; i < newlen; i++)
 	{
 		doc->xref_index[i] = 0;
@@ -108,7 +107,7 @@ static void pdf_resize_xref(fz_context *ctx, pdf_document *doc, int newlen)
 	assert(sub->next == NULL && sub->start == 0 && sub->len == xref->num_objects);
 	assert(newlen > xref->num_objects);
 
-	sub->table = fz_resize_array(ctx, sub->table, newlen, sizeof(pdf_xref_entry));
+	sub->table = fz_realloc_array(ctx, sub->table, newlen, pdf_xref_entry);
 	for (i = xref->num_objects; i < newlen; i++)
 	{
 		sub->table[i].type = 0;
@@ -128,7 +127,7 @@ static void pdf_resize_xref(fz_context *ctx, pdf_document *doc, int newlen)
 static void pdf_populate_next_xref_level(fz_context *ctx, pdf_document *doc)
 {
 	pdf_xref *xref;
-	doc->xref_sections = fz_resize_array(ctx, doc->xref_sections, doc->num_xref_sections + 1, sizeof(pdf_xref));
+	doc->xref_sections = fz_realloc_array(ctx, doc->xref_sections, doc->num_xref_sections + 1, pdf_xref);
 	doc->num_xref_sections++;
 
 	xref = &doc->xref_sections[doc->num_xref_sections - 1];
@@ -349,7 +348,7 @@ static void ensure_incremental_xref(fz_context *ctx, pdf_document *doc)
 		{
 			sub = fz_malloc_struct(ctx, pdf_xref_subsec);
 			trailer = xref->trailer ? pdf_copy_dict(ctx, xref->trailer) : NULL;
-			doc->xref_sections = fz_resize_array(ctx, doc->xref_sections, doc->num_xref_sections + 1, sizeof(pdf_xref));
+			doc->xref_sections = fz_realloc_array(ctx, doc->xref_sections, doc->num_xref_sections + 1, pdf_xref);
 			xref = &doc->xref_sections[0];
 			pxref = &doc->xref_sections[1];
 			memmove(pxref, xref, doc->num_xref_sections * sizeof(pdf_xref));
@@ -1152,7 +1151,7 @@ pdf_read_xref_sections(fz_context *ctx, pdf_document *doc, int64_t ofs, pdf_lexb
 
 	len = 0;
 	cap = 10;
-	offsets = fz_malloc_array(ctx, cap, sizeof(*offsets));
+	offsets = fz_malloc_array(ctx, cap, int64_t);
 
 	fz_try(ctx)
 	{
@@ -1171,7 +1170,7 @@ pdf_read_xref_sections(fz_context *ctx, pdf_document *doc, int64_t ofs, pdf_lexb
 			if (len == cap)
 			{
 				cap *= 2;
-				offsets = fz_resize_array(ctx, offsets, cap, sizeof(*offsets));
+				offsets = fz_realloc_array(ctx, offsets, cap, int64_t);
 			}
 			offsets[len++] = ofs;
 
@@ -1309,7 +1308,7 @@ pdf_load_linear(fz_context *ctx, pdf_document *doc)
 		pdf_read_xref_sections(ctx, doc, fz_tell(ctx, doc->file), &doc->lexbuf.base, 0);
 
 		doc->linear_page_count = pdf_dict_get_int(ctx, dict, PDF_NAME(N));
-		doc->linear_page_refs = fz_resize_array(ctx, doc->linear_page_refs, doc->linear_page_count, sizeof(pdf_obj *));
+		doc->linear_page_refs = fz_realloc_array(ctx, doc->linear_page_refs, doc->linear_page_count, pdf_obj *);
 		memset(doc->linear_page_refs, 0, doc->linear_page_count * sizeof(pdf_obj*));
 		doc->linear_obj = dict;
 		doc->linear_pos = fz_tell(ctx, doc->file);
@@ -1351,15 +1350,18 @@ pdf_init_document(fz_context *ctx, pdf_document *doc)
 
 	fz_try(ctx)
 	{
-		pdf_load_version(ctx, doc);
-
-		doc->file_length = fz_stream_meta(ctx, doc->file, FZ_STREAM_META_LENGTH, 0, NULL);
-		if (doc->file_length < 0)
-			doc->file_length = 0;
-
 		/* Check to see if we should work in progressive mode */
-		if (fz_stream_meta(ctx, doc->file, FZ_STREAM_META_PROGRESSIVE, 0, NULL) > 0)
+		if (doc->file->progressive)
+		{
 			doc->file_reading_linearly = 1;
+			fz_seek(ctx, doc->file, 0, SEEK_END);
+			doc->file_length = fz_tell(ctx, doc->file);
+			if (doc->file_length < 0)
+				doc->file_length = 0;
+			fz_seek(ctx, doc->file, 0, SEEK_SET);
+		}
+
+		pdf_load_version(ctx, doc);
 
 		/* Try to load the linearized file if we are in progressive
 		 * mode. */
@@ -1387,7 +1389,8 @@ pdf_init_document(fz_context *ctx, pdf_document *doc)
 		if (repaired)
 		{
 			/* pdf_repair_xref may access xref_index, so reset it properly */
-			memset(doc->xref_index, 0, sizeof(int) * doc->max_xref_len);
+			if (doc->xref_index)
+				memset(doc->xref_index, 0, sizeof(int) * doc->max_xref_len);
 			pdf_repair_xref(ctx, doc);
 			pdf_prime_xref_index(ctx, doc);
 		}
@@ -1408,7 +1411,7 @@ pdf_init_document(fz_context *ctx, pdf_document *doc)
 			hasroot = (pdf_dict_get(ctx, pdf_trailer(ctx, doc), PDF_NAME(Root)) != NULL);
 			hasinfo = (pdf_dict_get(ctx, pdf_trailer(ctx, doc), PDF_NAME(Info)) != NULL);
 
-			for (i = 1; i < xref_len; i++)
+			for (i = 1; i < xref_len && !hasinfo && !hasroot; ++i)
 			{
 				pdf_xref_entry *entry = pdf_get_xref_entry(ctx, doc, i);
 				if (entry->type == 0 || entry->type == 'f')
@@ -1432,6 +1435,7 @@ pdf_init_document(fz_context *ctx, pdf_document *doc)
 					{
 						nobj = pdf_new_indirect(ctx, doc, i, 0);
 						pdf_dict_put_drop(ctx, pdf_trailer(ctx, doc), PDF_NAME(Root), nobj);
+						hasroot = 1;
 					}
 				}
 
@@ -1441,6 +1445,7 @@ pdf_init_document(fz_context *ctx, pdf_document *doc)
 					{
 						nobj = pdf_new_indirect(ctx, doc, i, 0);
 						pdf_dict_put_drop(ctx, pdf_trailer(ctx, doc), PDF_NAME(Info), nobj);
+						hasinfo = 1;
 					}
 				}
 
@@ -1465,7 +1470,8 @@ pdf_init_document(fz_context *ctx, pdf_document *doc)
 	}
 	fz_catch(ctx)
 	{
-		fz_warn(ctx, "Ignoring Broken Optional Content");
+		fz_rethrow_if(ctx, FZ_ERROR_TRYLATER);
+		fz_warn(ctx, "Ignoring broken Optional Content configuration");
 	}
 
 	fz_try(ctx)
@@ -1505,7 +1511,6 @@ pdf_drop_document_imp(fz_context *ctx, pdf_document *doc)
 	pdf_drop_xref_sections(ctx, doc);
 	fz_free(ctx, doc->xref_index);
 
-	pdf_drop_obj(ctx, doc->focus_obj);
 	fz_drop_stream(ctx, doc->file);
 	pdf_drop_crypt(ctx, doc->crypt);
 
@@ -1557,6 +1562,12 @@ pdf_drop_document_imp(fz_context *ctx, pdf_document *doc)
 	fz_defer_reap_end(ctx);
 }
 
+/*
+	Closes and frees an opened PDF document.
+
+	The resource store in the context associated with pdf_document
+	is emptied.
+*/
 void
 pdf_drop_document(fz_context *ctx, pdf_document *doc)
 {
@@ -1941,6 +1952,23 @@ read_hinted_object(fz_context *ctx, pdf_document *doc, int num)
 	return expected != 0;
 }
 
+pdf_obj *
+pdf_load_unencrypted_object(fz_context *ctx, pdf_document *doc, int num)
+{
+	pdf_xref_entry *x;
+
+	if (num <= 0 || num >= pdf_xref_len(ctx, doc))
+		fz_throw(ctx, FZ_ERROR_GENERIC, "object out of range (%d 0 R); xref size %d", num, pdf_xref_len(ctx, doc));
+
+	x = pdf_get_xref_entry(ctx, doc, num);
+	if (x->type == 'n')
+	{
+		fz_seek(ctx, doc->file, x->ofs, SEEK_SET);
+		return pdf_parse_ind_obj(ctx, doc, doc->file, &doc->lexbuf.base, NULL, NULL, NULL, NULL);
+	}
+	return NULL;
+}
+
 pdf_xref_entry *
 pdf_cache_object(fz_context *ctx, pdf_document *doc, int num)
 {
@@ -2002,6 +2030,7 @@ object_updated:
 			}
 			fz_catch(ctx)
 			{
+				fz_rethrow_if(ctx, FZ_ERROR_TRYLATER);
 				if (rnum == num)
 					fz_throw(ctx, FZ_ERROR_GENERIC, "cannot parse object (%d 0 R)", num);
 				else
@@ -2104,6 +2133,9 @@ pdf_count_objects(fz_context *ctx, pdf_document *doc)
 	return pdf_xref_len(ctx, doc);
 }
 
+/*
+	Allocate a slot in the xref table and return a fresh unused object number.
+*/
 int
 pdf_create_object(fz_context *ctx, pdf_document *doc)
 {
@@ -2125,6 +2157,9 @@ pdf_create_object(fz_context *ctx, pdf_document *doc)
 	return num;
 }
 
+/*
+	Remove object from xref table, marking the slot as free.
+*/
 void
 pdf_delete_object(fz_context *ctx, pdf_document *doc, int num)
 {
@@ -2150,6 +2185,9 @@ pdf_delete_object(fz_context *ctx, pdf_document *doc, int num)
 	x->obj = NULL;
 }
 
+/*
+	Replace object in xref table with the passed in object.
+*/
 void
 pdf_update_object(fz_context *ctx, pdf_document *doc, int num, pdf_obj *newobj)
 {
@@ -2178,6 +2216,13 @@ pdf_update_object(fz_context *ctx, pdf_document *doc, int num, pdf_obj *newobj)
 	pdf_set_obj_parent(ctx, newobj, num);
 }
 
+/*
+	Replace stream contents for object in xref table with the passed in buffer.
+
+	The buffer contents must match the /Filter setting if 'compressed' is true.
+	If 'compressed' is false, the /Filter and /DecodeParms entries are deleted.
+	The /Length entry is updated.
+*/
 void
 pdf_update_stream(fz_context *ctx, pdf_document *doc, pdf_obj *obj, fz_buffer *newbuf, int compressed)
 {
@@ -2217,10 +2262,10 @@ pdf_lookup_metadata(fz_context *ctx, pdf_document *doc, const char *key, char *b
 	{
 		if (doc->crypt)
 			return (int)fz_snprintf(buf, size, "Standard V%d R%d %d-bit %s",
-					pdf_crypt_version(ctx, doc),
-					pdf_crypt_revision(ctx, doc),
-					pdf_crypt_length(ctx, doc),
-					pdf_crypt_method(ctx, doc));
+					pdf_crypt_version(ctx, doc->crypt),
+					pdf_crypt_revision(ctx, doc->crypt),
+					pdf_crypt_length(ctx, doc->crypt),
+					pdf_crypt_method(ctx, doc->crypt));
 		else
 			return (int)fz_strlcpy(buf, "None", size);
 	}
@@ -2279,6 +2324,15 @@ pdf_new_document(fz_context *ctx, fz_stream *file)
 	return doc;
 }
 
+/*
+	Opens a PDF document.
+
+	Same as pdf_open_document, but takes a stream instead of a
+	filename to locate the PDF document to open. Increments the
+	reference count of the stream. See fz_open_file,
+	fz_open_file_w or fz_open_fd for opening a stream, and
+	fz_drop_stream for closing an open stream.
+*/
 pdf_document *
 pdf_open_document_with_stream(fz_context *ctx, fz_stream *file)
 {
@@ -2289,12 +2343,30 @@ pdf_open_document_with_stream(fz_context *ctx, fz_stream *file)
 	}
 	fz_catch(ctx)
 	{
+		int caught = fz_caught(ctx);
 		fz_drop_document(ctx, &doc->super);
-		fz_rethrow(ctx);
+		fz_throw(ctx, caught, "Failed to open doc from stream");
 	}
 	return doc;
 }
 
+/*
+	Open a PDF document.
+
+	Open a PDF document by reading its cross reference table, so
+	MuPDF can locate PDF objects inside the file. Upon an broken
+	cross reference table or other parse errors MuPDF will restart
+	parsing the file from the beginning to try to rebuild a
+	(hopefully correct) cross reference table to allow further
+	processing of the file.
+
+	The returned pdf_document should be used when calling most
+	other PDF functions. Note that it wraps the context, so those
+	functions implicitly get access to the global state in
+	context.
+
+	filename: a path to a file as it would be given to open(2).
+*/
 pdf_document *
 pdf_open_document(fz_context *ctx, const char *filename)
 {
@@ -2354,9 +2426,9 @@ pdf_load_hints(fz_context *ctx, pdf_document *doc, int objnum)
 
 		/* Malloc the structures (use realloc to cope with the fact we
 		 * may try this several times before enough data is loaded) */
-		doc->hint_page = fz_resize_array(ctx, doc->hint_page, doc->linear_page_count+1, sizeof(*doc->hint_page));
+		doc->hint_page = fz_realloc_array(ctx, doc->hint_page, doc->linear_page_count+1, pdf_hint_page);
 		memset(doc->hint_page, 0, sizeof(*doc->hint_page) * (doc->linear_page_count+1));
-		doc->hint_obj_offsets = fz_resize_array(ctx, doc->hint_obj_offsets, max_object_num, sizeof(*doc->hint_obj_offsets));
+		doc->hint_obj_offsets = fz_realloc_array(ctx, doc->hint_obj_offsets, max_object_num, int64_t);
 		memset(doc->hint_obj_offsets, 0, sizeof(*doc->hint_obj_offsets) * max_object_num);
 		doc->hint_obj_offsets_max = max_object_num;
 
@@ -2418,7 +2490,7 @@ pdf_load_hints(fz_context *ctx, pdf_document *doc, int objnum)
 			shared += num_shared_objs;
 		}
 		doc->hint_page[i].index = shared;
-		doc->hint_shared_ref = fz_resize_array(ctx, doc->hint_shared_ref, shared, sizeof(*doc->hint_shared_ref));
+		doc->hint_shared_ref = fz_realloc_array(ctx, doc->hint_shared_ref, shared, int);
 		memset(doc->hint_shared_ref, 0, sizeof(*doc->hint_shared_ref) * shared);
 		fz_sync_bits(ctx, stream);
 		/* Item 4: Shared references */
@@ -2452,7 +2524,7 @@ pdf_load_hints(fz_context *ctx, pdf_document *doc, int objnum)
 			}
 		}
 
-		doc->hint_shared = fz_resize_array(ctx, doc->hint_shared, shared_obj_count_total+1, sizeof(*doc->hint_shared));
+		doc->hint_shared = fz_realloc_array(ctx, doc->hint_shared, shared_obj_count_total+1, pdf_hint_shared);
 		memset(doc->hint_shared, 0, sizeof(*doc->hint_shared) * (shared_obj_count_total+1));
 
 		/* Item 1: Shared references */
@@ -2652,6 +2724,10 @@ pdf_obj *pdf_progressive_advance(fz_context *ctx, pdf_document *doc, int pagenum
 	return doc->linear_page_refs[pagenum];
 }
 
+/*
+		Down-cast generic fitz objects into pdf specific variants.
+		Returns NULL if the objects are not from a PDF document.
+*/
 pdf_document *pdf_document_from_fz_document(fz_context *ctx, fz_document *ptr)
 {
 	return (pdf_document *)((ptr && ptr->count_pages == (fz_document_count_pages_fn*)pdf_count_pages) ? ptr : NULL);
@@ -2662,11 +2738,10 @@ pdf_page *pdf_page_from_fz_page(fz_context *ctx, fz_page *ptr)
 	return (pdf_page *)((ptr && ptr->bound_page == (fz_page_bound_page_fn*)pdf_bound_page) ? ptr : NULL);
 }
 
-pdf_annot *pdf_annot_from_fz_annot(fz_context *ctx, fz_annot *ptr)
-{
-	return (pdf_annot *)((ptr && ptr->bound_annot == (fz_annot_bound_fn*)pdf_bound_annot) ? ptr : NULL);
-}
-
+/*
+	down-cast a fz_document to a pdf_document.
+	Returns NULL if underlying document is not PDF
+*/
 pdf_document *pdf_specifics(fz_context *ctx, fz_document *doc)
 {
 	return pdf_document_from_fz_document(ctx, doc);

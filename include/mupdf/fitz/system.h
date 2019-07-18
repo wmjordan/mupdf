@@ -71,6 +71,9 @@ typedef unsigned __int64 uint64_t;
 #endif
 #endif
 #endif
+#ifndef HAVE_SIGSETJMP
+#define HAVE_SIGSETJMP 0
+#endif
 
 /*
 	Where possible (i.e. on platforms on which they are provided), use
@@ -369,5 +372,10 @@ static inline float my_atan2f(float o, float a)
 #define cosf(x) my_sinf(FZ_PI / 2.0f + (x))
 #define atan2f(x,y) my_atan2f((x),(y))
 #endif
+
+static inline int fz_is_pow2(int a)
+{
+	return (a != 0) && (a & (a-1)) == 0;
+}
 
 #endif
