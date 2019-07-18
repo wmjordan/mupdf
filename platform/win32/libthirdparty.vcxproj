@@ -137,7 +137,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <_ProjectFileVersion>15.0.28127.55</_ProjectFileVersion>
+    <_ProjectFileVersion>15.0.28307.705</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(Configuration)\</OutDir>
@@ -348,6 +348,7 @@
     <ClCompile Include="..\..\thirdparty\freetype\src\base\ftbase.c" />
     <ClCompile Include="..\..\thirdparty\freetype\src\base\ftbbox.c" />
     <ClCompile Include="..\..\thirdparty\freetype\src\base\ftbitmap.c" />
+    <ClCompile Include="..\..\thirdparty\freetype\src\base\ftdebug.c" />
     <ClCompile Include="..\..\thirdparty\freetype\src\base\ftgasp.c" />
     <ClCompile Include="..\..\thirdparty\freetype\src\base\ftglyph.c" />
     <ClCompile Include="..\..\thirdparty\freetype\src\base\ftinit.c" />

@@ -48,11 +48,11 @@ def main():
 	doc_exports = collectFunctions("source/fitz/document-all.c") + ["fz_get_annot_type"]
 	more_formats = collectFunctions("source/fitz/svg-device.c") + collectFunctions("source/fitz/output-pcl.c") + collectFunctions("source/fitz/output-pwg.c")
 	form_exports = collectFunctions("source/pdf/pdf-form.c") + collectFunctions("source/pdf/pdf-event.c") + collectFunctions("source/pdf/pdf-appearance.c") + ["pdf_access_submit_event", "pdf_init_ui_pointer_event"]
-	misc_exports = collectFunctions("source/fitz/stream-prog.c") + collectFunctions("source/fitz/test-device.c") + ["fz_android_fprintf", "fz_colorspace_devicen_n", "fz_getoptw", "fz_valgrind_pixmap", "msvc_snprintf", "msvc_vsnprintf", "track_usage"]
+	misc_exports = collectFunctions("source/fitz/test-device.c") + ["fz_set_stderr", "fz_set_stdout", "fz_colorspace_name_process_colorants", "fz_getoptw", "fz_valgrind_pixmap", "fz_stderr", "track_usage"]
 	sign_exports = ["pdf_crypt_buffer", "pdf_read_pfx", "pdf_sign_signature", "pdf_signer_designated_name", "pdf_free_designated_name"]
 
 	fitz_exports = generateExports("include/mupdf/fitz", doc_exports + more_formats + misc_exports)
-	mupdf_exports = generateExports("include/mupdf/pdf", form_exports + sign_exports + ["pdf_drop_designated_name", "pdf_print_xref", "pdf_recognize", "pdf_resolve_obj", "pdf_open_compressed_stream"])
+	mupdf_exports = generateExports("include/mupdf/pdf", form_exports + sign_exports + ["pdf_drop_designated_name", "pdf_print_xref", "pdf_recognize", "pdf_resolve_obj", "pdf_open_compressed_stream", "pdf_finish_edit"])
 
 	list = LIBMUPDF_DEF % locals()
 	open("platform/win32/libmupdf.def", "wb").write(list.replace("\n", "\r\n"))
