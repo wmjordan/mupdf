@@ -94,7 +94,7 @@ file_as_stream(fz_context *ctx, void *opaque)
 	FILE *file = opaque;
 	fflush(file);
 	return fz_open_file_ptr_no_close(ctx, file);
-};
+}
 
 /*
 	Create a new output object with the given
@@ -485,7 +485,7 @@ fz_write_base64(fz_context *ctx, fz_output *out, const unsigned char *data, int 
 {
 	static const char set[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	int i;
-	for (i = 0; i + 3 < size; i += 3)
+	for (i = 0; i + 3 <= size; i += 3)
 	{
 		int c = data[i];
 		int d = data[i+1];
