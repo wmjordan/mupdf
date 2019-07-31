@@ -114,9 +114,9 @@ namespace MupdfSharp
 			const uint FZ_STORE_DEFAULT = 256 << 20;
 			const string DLL = "MuPDFLib.dll";
 			// note: modify the version number to match the FZ_VERSION definition in "fitz\version.h" file
-			const string FZ_VERSION = "1.15.0";
+			const string FZ_VERSION = "1.16.0";
 
-			[DllImport(DLL, EntryPoint = "fz_new_context_imp", CallingConvention = CC.Cdecl, BestFitMapping = false)]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_new_context_imp", BestFitMapping = false)]
 			static extern IntPtr NewContext(IntPtr alloc, IntPtr locks, uint max_store, [MarshalAs(UnmanagedType.LPStr)] string fz_version);
 
 			internal static IntPtr NewContext() {
@@ -127,28 +127,28 @@ namespace MupdfSharp
 				return c;
 			}
 
-			[DllImport(DLL, EntryPoint = "fz_drop_context", CallingConvention = CC.Cdecl)]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_drop_context")]
 			internal static extern void DropContext(IntPtr ctx);
 
-			[DllImport (DLL, EntryPoint = "fz_open_file_w", CharSet = CharSet.Unicode)]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_open_file_w", CharSet = CharSet.Unicode)]
 			public static extern IntPtr OpenFile (IntPtr ctx, string fileName);
 
-			[DllImport (DLL, EntryPoint = "pdf_open_document_with_stream")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "pdf_open_document_with_stream")]
 			public static extern IntPtr OpenDocumentStream (IntPtr ctx, IntPtr stm);
 
-			[DllImport (DLL, EntryPoint = "fz_drop_stream")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_drop_stream")]
 			public static extern IntPtr DropStream (IntPtr ctx, IntPtr stm);
 
-			[DllImport (DLL, EntryPoint = "pdf_drop_document")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "pdf_drop_document")]
 			public static extern IntPtr DropDocument (IntPtr ctx, IntPtr doc);
 
-			[DllImport (DLL, EntryPoint = "pdf_count_pages")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "pdf_count_pages")]
 			public static extern int CountPages (IntPtr ctx, IntPtr doc);
 
-			[DllImport (DLL, EntryPoint = "pdf_bound_page")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "pdf_bound_page")]
 			public static extern Rectangle BoundPage (IntPtr ctx, IntPtr page);
 
-			[DllImport (DLL, EntryPoint = "fz_clear_pixmap_with_value")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_clear_pixmap_with_value")]
 			public static extern void ClearPixmap (IntPtr ctx, IntPtr pix, int byteValue);
 
 			public static IntPtr FindDeviceColorSpace(IntPtr context, ColorSpace colorspace) {
@@ -160,39 +160,39 @@ namespace MupdfSharp
 					default: throw new NotImplementedException(colorspace + " not supported.");
 				}
 			}
-			[DllImport(DLL, EntryPoint = "fz_device_gray", CallingConvention = CC.Cdecl)]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_device_gray")]
 			public static extern IntPtr GetGrayColorSpace(IntPtr ctx);
-			[DllImport(DLL, EntryPoint = "fz_device_rgb", CallingConvention = CC.Cdecl)]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_device_rgb")]
 			public static extern IntPtr GetRgbColorSpace(IntPtr ctx);
-			[DllImport(DLL, EntryPoint = "fz_device_bgr", CallingConvention = CC.Cdecl)]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_device_bgr")]
 			public static extern IntPtr GetBgrColorSpace(IntPtr ctx);
-			[DllImport(DLL, EntryPoint = "fz_device_cmyk", CallingConvention = CC.Cdecl)]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_device_cmyk")]
 			public static extern IntPtr GetCmykColorSpace(IntPtr ctx);
 
-			[DllImport(DLL, EntryPoint = "fz_close_device")]
+			[DllImport(DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_close_device")]
 			public static extern void CloseDevice(IntPtr ctx, IntPtr dev);
-			[DllImport (DLL, EntryPoint = "fz_drop_device")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_drop_device")]
 			public static extern void DropDevice (IntPtr ctx, IntPtr dev);
 
-			[DllImport (DLL, EntryPoint = "fz_drop_page")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_drop_page")]
 			public static extern void DropPage (IntPtr ctx, IntPtr page);
 
-			[DllImport (DLL, EntryPoint = "pdf_load_page")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "pdf_load_page")]
 			public static extern IntPtr LoadPage (IntPtr ctx, IntPtr doc, int pageNumber);
 
-			[DllImport (DLL, EntryPoint = "fz_new_draw_device")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_new_draw_device")]
 			public static extern IntPtr NewDrawDevice (IntPtr ctx, Matrix matrix, IntPtr pix);
 
-			[DllImport (DLL, EntryPoint = "fz_new_pixmap")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_new_pixmap")]
 			public static extern IntPtr NewPixmap (IntPtr ctx, IntPtr colorspace, int width, int height, IntPtr separation, int alpha);
 
-			[DllImport (DLL, EntryPoint = "pdf_run_page")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "pdf_run_page")]
 			public static extern void RunPage (IntPtr ctx, IntPtr page, IntPtr dev, Matrix transform, IntPtr cookie);
 
-			[DllImport (DLL, EntryPoint = "fz_drop_pixmap")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_drop_pixmap")]
 			public static extern void DropPixmap (IntPtr ctx, IntPtr pix);
 
-			[DllImport (DLL, EntryPoint = "fz_pixmap_samples")]
+			[DllImport (DLL, CallingConvention = CC.Cdecl, EntryPoint = "fz_pixmap_samples")]
 			public static extern IntPtr GetSamples (IntPtr ctx, IntPtr pix);
 
 			[DllImport("kernel32.dll")]
