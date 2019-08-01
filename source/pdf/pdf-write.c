@@ -132,6 +132,30 @@ enum
 	USE_PAGE_SHIFT = 8
 };
 
+static void
+expand_lists(fz_context *ctx, pdf_write_state *opts, int num)
+{
+	int i;
+
+	/* objects are numbered 0..num and maybe two additional objects for linearization */
+	num += 3;
+	opts->use_list = fz_realloc_array(ctx, opts->use_list, num, int);
+	opts->ofs_list = fz_realloc_array(ctx, opts->ofs_list, num, int64_t);
+	opts->gen_list = fz_realloc_array(ctx, opts->gen_list, num, int);
+	opts->renumber_map = fz_realloc_array(ctx, opts->renumber_map, num, int);
+	opts->rev_renumber_map = fz_realloc_array(ctx, opts->rev_renumber_map, num, int);
+
+	for (i = opts->list_len; i < num; i++)
+	{
+		opts->use_list[i] = 0;
+		opts->ofs_list[i] = 0;
+		opts->gen_list[i] = 0;
+		opts->renumber_map[i] = i;
+		opts->rev_renumber_map[i] = i;
+	}
+	opts->list_len = num;
+}
+
 /*
  * page_objects and page_object_list handling functions
  */
@@ -205,6 +229,8 @@ static void
 page_objects_list_insert(fz_context *ctx, pdf_write_state *opts, int page, int object)
 {
 	page_objects_list_ensure(ctx, &opts->page_object_lists, page+1);
+	if (object >= opts->list_len)
+		expand_lists(ctx, opts, object);
 	if (opts->page_object_lists->len < page+1)
 		opts->page_object_lists->len = page+1;
 	page_objects_insert(ctx, &opts->page_object_lists->page[page], object);
@@ -214,6 +240,8 @@ static void
 page_objects_list_set_page_object(fz_context *ctx, pdf_write_state *opts, int page, int object)
 {
 	page_objects_list_ensure(ctx, &opts->page_object_lists, page+1);
+	if (object >= opts->list_len)
+		expand_lists(ctx, opts, object);
 	opts->page_object_lists->page[page]->page_object_number = object;
 }
 
@@ -639,30 +667,6 @@ static int markobj(fz_context *ctx, pdf_document *doc, pdf_write_state *opts, pd
 	return 0;
 }
 
-static void
-expand_lists(fz_context *ctx, pdf_write_state *opts, int num)
-{
-	int i;
-
-	/* objects are numbered 0..num and maybe two additional objects for linearization */
-	num += 3;
-	opts->use_list = fz_realloc_array(ctx, opts->use_list, num, int);
-	opts->ofs_list = fz_realloc_array(ctx, opts->ofs_list, num, int64_t);
-	opts->gen_list = fz_realloc_array(ctx, opts->gen_list, num, int);
-	opts->renumber_map = fz_realloc_array(ctx, opts->renumber_map, num, int);
-	opts->rev_renumber_map = fz_realloc_array(ctx, opts->rev_renumber_map, num, int);
-
-	for (i = opts->list_len; i < num; i++)
-	{
-		opts->use_list[i] = 0;
-		opts->ofs_list[i] = 0;
-		opts->gen_list[i] = 0;
-		opts->renumber_map[i] = i;
-		opts->rev_renumber_map[i] = i;
-	}
-	opts->list_len = num;
-}
-
 /*
  * Scan for and remove duplicate objects (slow)
  */
@@ -982,6 +986,8 @@ mark_all(fz_context *ctx, pdf_document *doc, pdf_write_state *opts, pdf_obj *val
 		if (pdf_is_indirect(ctx, val))
 		{
 			int num = pdf_to_num(ctx, val);
+			if (num >= opts->list_len)
+				expand_lists(ctx, opts, num);
 			if (opts->use_list[num] & USE_PAGE_MASK)
 				/* Already used */
 				opts->use_list[num] |= USE_SHARED;
@@ -3120,25 +3126,19 @@ new_identity(fz_context *ctx, pdf_document *doc)
 	pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd) / 2));
 	pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 16, nelem(rnd) / 2));
 
-	return pdf_array_get(ctx, id, 0);
+	return id;
 }
 
-static pdf_obj *
-change_identity(fz_context *ctx, pdf_document *doc)
+static void
+change_identity(fz_context *ctx, pdf_document *doc, pdf_obj *id)
 {
-	pdf_obj *identity = pdf_dict_get(ctx, pdf_trailer(ctx, doc), PDF_NAME(ID));
-	pdf_obj *str;
 	unsigned char rnd[16];
-
-	if (pdf_array_len(ctx, identity) >= 2)
+	if (pdf_array_len(ctx, id) >= 2)
 	{
-		/* Maybe recalculate this in future. For now, just change the second one. */
+		/* Update second half of ID array with new random data. */
 		fz_memrnd(ctx, rnd, 16);
-		str = pdf_new_string(ctx, (char *)rnd, 16);
-		pdf_array_put_drop(ctx, identity, 1, str);
+		pdf_array_put_drop(ctx, id, 1, pdf_new_string(ctx, (char *)rnd, 16));
 	}
-
-	return pdf_array_get(ctx, identity, 0);
 }
 
 static void
@@ -3210,6 +3210,7 @@ do_pdf_save_document(fz_context *ctx, pdf_document *doc, pdf_write_state *opts, 
 	int lastfree;
 	int num;
 	int xref_len;
+	pdf_obj *id, *id1;
 
 	if (in_opts->do_incremental)
 	{
@@ -3229,29 +3230,31 @@ do_pdf_save_document(fz_context *ctx, pdf_document *doc, pdf_write_state *opts, 
 	{
 		initialise_write_state(ctx, doc, in_opts, opts);
 
+		/* Update second half of ID array if it exists. */
+		id = pdf_dict_get(ctx, pdf_trailer(ctx, doc), PDF_NAME(ID));
+		if (id)
+			change_identity(ctx, doc, id);
+
 		/* Remove encryption dictionary if saving without encryption. */
 		if (opts->do_encrypt == PDF_ENCRYPT_NONE)
 		{
 			pdf_dict_del(ctx, pdf_trailer(ctx, doc), PDF_NAME(Encrypt));
 		}
 
-		/* Add encryption dictionary if saving with encryption. */
-		if (opts->do_encrypt)
-		{
-			pdf_obj *id;
-
-			id = pdf_dict_get(ctx, pdf_trailer(ctx, doc), PDF_NAME(ID));
-			if (!id)
-				id = new_identity(ctx, doc);
-			else
-				id = change_identity(ctx, doc);
-
-			opts->crypt = pdf_new_encrypt(ctx, opts->opwd_utf8, opts->upwd_utf8, id, opts->permissions, opts->do_encrypt);
-			create_encryption_dictionary(ctx, doc, opts->crypt);
-		}
-		else
+		/* Keep encryption dictionary if saving with old encryption. */
+		else if (opts->do_encrypt == PDF_ENCRYPT_KEEP)
 		{
 			opts->crypt = doc->crypt;
+		}
+
+		/* Create encryption dictionary if saving with new encryption. */
+		else
+		{
+			if (!id)
+				id = new_identity(ctx, doc);
+			id1 = pdf_array_get(ctx, id, 0);
+			opts->crypt = pdf_new_encrypt(ctx, opts->opwd_utf8, opts->upwd_utf8, id1, opts->permissions, opts->do_encrypt);
+			create_encryption_dictionary(ctx, doc, opts->crypt);
 		}
 
 		/* Make sure any objects hidden in compressed streams have been loaded */
@@ -3259,8 +3262,6 @@ do_pdf_save_document(fz_context *ctx, pdf_document *doc, pdf_write_state *opts, 
 		{
 			pdf_ensure_solid_xref(ctx, doc, xref_len);
 			preloadobjstms(ctx, doc);
-			if (!opts->do_encrypt)
-				change_identity(ctx, doc);
 			xref_len = pdf_xref_len(ctx, doc); /* May have changed due to repair */
 			expand_lists(ctx, opts, xref_len);
 		}
