@@ -327,7 +327,6 @@ static void on_motion(int x, int y)
 {
 	ui.x = x;
 	ui.y = y;
-	ui.mod = glutGetModifiers();
 	ui_invalidate();
 }
 
@@ -335,7 +334,6 @@ static void on_passive_motion(int x, int y)
 {
 	ui.x = x;
 	ui.y = y;
-	ui.mod = glutGetModifiers();
 	ui_invalidate();
 }
 
@@ -1068,6 +1066,30 @@ void ui_tree_end(struct list *list)
 void ui_list_end(struct list *list)
 {
 	ui_tree_end(list);
+}
+
+void ui_label_with_scrollbar(char *text, int width, int height, int *scroll)
+{
+	struct line lines[500];
+	fz_irect area;
+	int n;
+
+	area = ui_pack(width, height);
+	n = ui_break_lines(text, lines, nelem(lines), area.x1-area.x0 - 16, NULL);
+	if (n > (area.y1-area.y0) / ui.lineheight)
+	{
+		if (ui_mouse_inside(area))
+			*scroll -= ui.scroll_y * ui.lineheight * 3;
+		ui_scrollbar(area.x1-16, area.y0, area.x1, area.y1, scroll, area.y1-area.y0, n * ui.lineheight);
+	}
+	else
+		*scroll = 0;
+
+	glScissor(area.x0, ui.window_h-area.y1, area.x1-area.x0-16, area.y1-area.y0);
+	glEnable(GL_SCISSOR_TEST);
+	glColorHex(UI_COLOR_TEXT_FG);
+	ui_draw_lines(area.x0, area.y0 - *scroll, lines, n);
+	glDisable(GL_SCISSOR_TEST);
 }
 
 int ui_popup(const void *id, const char *label, int is_button, int count)
