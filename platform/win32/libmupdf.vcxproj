@@ -416,7 +416,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions);TOFU;TOFU_CJK_EXT</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <WarningLevel>Level3</WarningLevel>
@@ -436,7 +436,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>..\..\scripts\freetype;..\..\scripts\libjpeg;..\..\include;..\..\thirdparty\jbig2dec;..\..\thirdparty\libjpeg;..\..\thirdparty\openjpeg\src\lib\openjp2;..\..\thirdparty\zlib;..\..\thirdparty\freetype\include;..\..\thirdparty\mujs;..\..\thirdparty\harfbuzz\src;..\..\thirdparty\lcms2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;NDEBUG;OPJ_STATIC;HAVE_LCMS2MT=1;%(PreprocessorDefinitions);TOFU;TOFU_CJK_EXT</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <WarningLevel>Level3</WarningLevel>
