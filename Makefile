@@ -56,7 +56,7 @@ endif
 
 MKTGTDIR = mkdir -p $(dir $@)
 CC_CMD = $(QUIET_CC) $(MKTGTDIR) ; $(CC) $(CFLAGS) -MMD -MP -o $@ -c $<
-CXX_CMD = $(QUIET_CXX) $(MKTGTDIR) ; $(CXX) $(CFLAGS) -MMD -MP -o $@ -c $<
+CXX_CMD = $(QUIET_CXX) $(MKTGTDIR) ; $(CXX) $(CFLAGS) $(XCXXFLAGS) -MMD -MP -o $@ -c $<
 AR_CMD = $(QUIET_AR) $(MKTGTDIR) ; $(AR) cr $@ $^
 ifdef RANLIB
   RANLIB_CMD = $(QUIET_RANLIB) $(RANLIB) $@
@@ -64,7 +64,7 @@ endif
 LINK_CMD = $(QUIET_LINK) $(MKTGTDIR) ; $(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 TAGS_CMD = $(QUIET_TAGS) ctags -R --c-kinds=+p
 WINDRES_CMD = $(QUIET_WINDRES) $(MKTGTDIR) ; $(WINDRES) $< $@
-OBJCOPY_CMD = $(QUIET_OBJCOPY) $(MKTGTDIR) ; $(LD) -r -b binary -o $@ $<
+OBJCOPY_CMD = $(QUIET_OBJCOPY) $(MKTGTDIR) ; $(LD) -r -b binary -z noexecstack -o $@ $<
 
 # --- Rules ---
 
@@ -107,6 +107,9 @@ endif
 $(OUT)/source/%.o : source/%.c
 	$(CC_CMD) -Wall -Wdeclaration-after-statement $(LIB_CFLAGS) $(THIRD_CFLAGS)
 
+$(OUT)/source/%.o : source/%.cpp
+	$(CXX_CMD) -Wall $(LIB_CFLAGS) $(THIRD_CFLAGS)
+
 $(OUT)/platform/%.o : platform/%.c
 	$(CC_CMD) -Wall
 
@@ -120,8 +123,10 @@ $(OUT)/%.o: %.rc
 
 THIRD_OBJ := $(THIRD_SRC:%.c=$(OUT)/%.o)
 THIRD_OBJ := $(THIRD_OBJ:%.cc=$(OUT)/%.o)
+THIRD_OBJ := $(THIRD_OBJ:%.cpp=$(OUT)/%.o)
 
 MUPDF_SRC := $(sort $(wildcard source/fitz/*.c))
+MUPDF_SRC += $(sort $(wildcard source/fitz/*.cpp))
 MUPDF_SRC += $(sort $(wildcard source/pdf/*.c))
 MUPDF_SRC += $(sort $(wildcard source/xps/*.c))
 MUPDF_SRC += $(sort $(wildcard source/svg/*.c))
@@ -129,6 +134,7 @@ MUPDF_SRC += $(sort $(wildcard source/html/*.c))
 MUPDF_SRC += $(sort $(wildcard source/cbz/*.c))
 
 MUPDF_OBJ := $(MUPDF_SRC:%.c=$(OUT)/%.o)
+MUPDF_OBJ := $(MUPDF_OBJ:%.cpp=$(OUT)/%.o)
 
 THREAD_SRC := source/helpers/mu-threads/mu-threads.c
 THREAD_OBJ := $(THREAD_SRC:%.c=$(OUT)/%.o)
@@ -193,6 +199,13 @@ source/pdf/js/%.js.h: source/pdf/js/%.js scripts/jsdump.sed
 	$(QUIET_GEN) sed -f scripts/jsdump.sed < $< > $@
 
 generate: source/pdf/js/util.js.h
+
+# --- Generated perfect hash source files ---
+
+source/html/css-properties.h: source/html/css-properties.gperf
+	$(QUIET_GEN) gperf > $@ $<
+
+generate: source/html/css-properties.h
 
 # --- Library ---
 
@@ -379,6 +392,9 @@ watch-recompile:
 
 java:
 	$(MAKE) -C platform/java
+
+java-clean:
+	$(MAKE) -C platform/java clean
 
 wasm:
 	$(MAKE) -C platform/wasm
